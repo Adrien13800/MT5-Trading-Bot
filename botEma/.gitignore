@@ -1,0 +1,28 @@
+# Configs avec identifiants / secrets
+config.py
+backtest/config.py
+
+# Logs et journaux de session
+*.log
+trading_session_*.txt
+failed_trades_log.json
+
+# Fichiers de backtest volumineux / rapports Excel
+backtest/*.xlsx
+backtest/*.csv
+
+# Fichiers compilés / cache Python
+__pycache__/
+*.pyc
+
+# Environnements et fichiers temporaires
+.env
+.venv/
+env/
+*.tmp
+
+# Dossiers propres à l'IDE / outils
+.cursor/
+.vscode/
+.idea/
+

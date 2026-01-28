@@ -1,0 +1,58 @@
+{
+  "symbol": "US500.cash",
+  "source": "backtest_report - Par jour",
+  "by_day": {
+    "Lundi": {
+      "trades": 72,
+      "gagnants": 44,
+      "perdants": 28,
+      "wr_pct": 61.11,
+      "profit_usd": 2898.99,
+      "perte_usd": 1670.35,
+      "net_usd": 1228.64,
+      "profit_factor": 1.74
+    },
+    "Mardi": {
+      "trades": 58,
+      "gagnants": 32,
+      "perdants": 26,
+      "wr_pct": 55.17,
+      "profit_usd": 2055.24,
+      "perte_usd": 1575.53,
+      "net_usd": 479.72,
+      "profit_factor": 1.30
+    },
+    "Mercredi": {
+      "trades": 70,
+      "gagnants": 49,
+      "perdants": 21,
+      "wr_pct": 70.00,
+      "profit_usd": 3118.93,
+      "perte_usd": 1249.33,
+      "net_usd": 1869.61,
+      "profit_factor": 2.50
+    },
+    "Jeudi": {
+      "trades": 70,
+      "gagnants": 32,
+      "perdants": 38,
+      "wr_pct": 45.71,
+      "profit_usd": 2139.42,
+      "perte_usd": 2354.84,
+      "net_usd": -215.42,
+      "profit_factor": 0.91
+    },
+    "Vendredi": {
+      "trades": 76,
+      "gagnants": 46,
+      "perdants": 30,
+      "wr_pct": 60.53,
+      "profit_usd": 3077.36,
+      "perte_usd": 1854.25,
+      "net_usd": 1223.11,
+      "profit_factor": 1.66
+    }
+  },
+  "total_trades": 346,
+  "total_net_usd": 4565.66
+}

@@ -1,0 +1,58 @@
+{
+  "symbol": "US30",
+  "source": "backtest_report_20260128_211344.xlsx - Par jour",
+  "by_day": {
+    "Lundi": {
+      "trades": 73,
+      "gagnants": 53,
+      "perdants": 20,
+      "wr_pct": 72.60,
+      "profit_usd": 3728.08,
+      "perte_usd": 1192.51,
+      "net_usd": 2535.57,
+      "profit_factor": 3.13
+    },
+    "Mardi": {
+      "trades": 74,
+      "gagnants": 46,
+      "perdants": 28,
+      "wr_pct": 62.16,
+      "profit_usd": 2980.93,
+      "perte_usd": 1615.72,
+      "net_usd": 1365.21,
+      "profit_factor": 1.84
+    },
+    "Mercredi": {
+      "trades": 73,
+      "gagnants": 43,
+      "perdants": 30,
+      "wr_pct": 58.90,
+      "profit_usd": 2812.71,
+      "perte_usd": 1725.21,
+      "net_usd": 1087.50,
+      "profit_factor": 1.63
+    },
+    "Jeudi": {
+      "trades": 75,
+      "gagnants": 43,
+      "perdants": 32,
+      "wr_pct": 57.33,
+      "profit_usd": 2871.46,
+      "perte_usd": 1929.27,
+      "net_usd": 942.19,
+      "profit_factor": 1.49
+    },
+    "Vendredi": {
+      "trades": 77,
+      "gagnants": 42,
+      "perdants": 35,
+      "wr_pct": 54.55,
+      "profit_usd": 2837.90,
+      "perte_usd": 2147.12,
+      "net_usd": 690.79,
+      "profit_factor": 1.32
+    }
+  },
+  "total_trades": 372,
+  "total_net_usd": 6621.26
+}
