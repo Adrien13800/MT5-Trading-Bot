@@ -13,11 +13,12 @@ MT5_SERVER = "Broker-Server"    # Nom du serveur (ex: "FTMO-Server3", "MetaQuote
 SYMBOLS = ["US30.cash", "US100.cash", "US500.cash"]
 
 # Stratégie "actif du jour" + un seul actif à la fois
-USE_DAILY_PREFERRED_SYMBOL = True   # Ne trader que l'actif préféré ce jour-là
+# L'actif du jour est recalculé à chaque cycle → mise à jour automatique après minuit
+USE_DAILY_PREFERRED_SYMBOL = True   # Ne trader QUE l'actif du jour (permanent)
 ONE_SYMBOL_AT_A_TIME = True         # Ne jamais avoir 2 actifs en position simultanément
 
 # Actif à trader par jour (0=Lundi, 1=Mardi, 2=Mercredi, 3=Jeudi, 4=Vendredi)
-# Basé sur le WR du backtest — à adapter selon vos résultats
+# Le bot lit le jour courant à chaque itération → changement automatique d'un jour à l'autre
 PREFERRED_SYMBOL_BY_DAY = {
     0: "US30.cash",   # Lundi
     1: "US100.cash",  # Mardi

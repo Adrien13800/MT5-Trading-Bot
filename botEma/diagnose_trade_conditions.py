@@ -97,7 +97,8 @@ def diagnose_symbol(symbol: str):
         return
     else:
         print(f"   ✅ OK: {len(df)} bougies M5 chargées")
-        current = df.iloc[-1]
+        # Après sort_index (get_market_data): iloc[-2]=dernière barre fermée
+        current = df.iloc[-2]
         print(f"   ✅ Prix actuel: {current['close']:.2f}")
         print(f"   ✅ EMA{EMA_FAST}: {current[f'EMA_{EMA_FAST}']:.2f}")
         print(f"   ✅ SMA{SMA_SLOW}: {current[f'SMA_{SMA_SLOW}']:.2f}")
@@ -105,7 +106,8 @@ def diagnose_symbol(symbol: str):
     # ========== ÉTAPE 3: NOUVELLE BOUGIE ==========
     print("\n📋 ÉTAPE 3: NOUVELLE BOUGIE")
     print("-" * 70)
-    current_time = df.index[-1].to_pydatetime()
+    # Après sort_index: index[-2]=dernière barre fermée
+    current_time = df.index[-2].to_pydatetime()
     if symbol in bot.last_bar_time and current_time <= bot.last_bar_time[symbol]:
         print(f"   ❌ BLOQUÉ: Pas de nouvelle bougie")
         print(f"   ⚠️  Dernière bougie traitée: {bot.last_bar_time[symbol].strftime('%H:%M:%S')}")
@@ -161,8 +163,9 @@ def diagnose_symbol(symbol: str):
     # ========== ÉTAPE 6: CROISEMENT EMA20/SMA50 ==========
     print("\n📋 ÉTAPE 6: CROISEMENT EMA20/SMA50")
     print("-" * 70)
-    current = df.iloc[-1]
-    prev = df.iloc[-2]
+    # Après sort_index: iloc[-2]=dernière barre fermée, iloc[-3]=avant-dernière
+    current = df.iloc[-2]
+    prev = df.iloc[-3]
     ema20_curr = current[f'EMA_{EMA_FAST}']
     sma50_curr = current[f'SMA_{SMA_SLOW}']
     ema20_prev = prev[f'EMA_{EMA_FAST}']

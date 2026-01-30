@@ -79,8 +79,12 @@ def main():
     
     try:
         if args.once:
-            # Une seule analyse
-            for symbol in config_data['symbols']:
+            # Une seule analyse — respecter l'actif du jour (même logique que run())
+            symbols_to_process = config_data['symbols']
+            preferred = bot.get_preferred_symbol_for_today()
+            if getattr(bot, 'use_daily_preferred_symbol', False) and preferred is not None:
+                symbols_to_process = [preferred]
+            for symbol in symbols_to_process:
                 bot.process_symbol(symbol)
             bot.display_status()
         else:
