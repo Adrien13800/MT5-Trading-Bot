@@ -2009,11 +2009,13 @@ class MT5TradingBot:
                     # Vérifier si le marché est ouvert
                     symbol_info = mt5.symbol_info(symbol)
                     if symbol_info:
-                        # Vérifier les heures de trading
+                        # Vérifier les heures de trading (certaines versions MT5 n'ont pas SYMBOL_TRADE_MODE_CLOSE_ONLY)
                         trade_mode = symbol_info.trade_mode
-                        if trade_mode == mt5.SYMBOL_TRADE_MODE_DISABLED:
+                        mode_disabled = getattr(mt5, 'SYMBOL_TRADE_MODE_DISABLED', 0)
+                        mode_close_only = getattr(mt5, 'SYMBOL_TRADE_MODE_CLOSE_ONLY', None)
+                        if trade_mode == mode_disabled:
                             status_msg = " (Marché fermé - SYMBOL_TRADE_MODE_DISABLED)"
-                        elif trade_mode == mt5.SYMBOL_TRADE_MODE_CLOSE_ONLY:
+                        elif mode_close_only is not None and trade_mode == mode_close_only:
                             status_msg = " (Marché en clôture uniquement)"
                         else:
                             # Forcer un rechargement des données H1
