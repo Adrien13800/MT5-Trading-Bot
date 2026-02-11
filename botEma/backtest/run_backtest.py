@@ -7,7 +7,7 @@ Teste la stratégie sur 3 ans de données historiques
 import sys
 import os
 from datetime import datetime, timedelta
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 try:
     import pandas as pd
@@ -19,8 +19,14 @@ except ImportError:
     print("   Installez-les avec: pip install pandas openpyxl")
     sys.exit(1)
 
-# Ajouter le répertoire parent au path pour importer le module de backtest
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# S'assurer que le dossier backtest est en premier dans le path (config.py = backtest/config.py)
+_backtest_dir = os.path.dirname(os.path.abspath(__file__))
+if _backtest_dir not in sys.path:
+    sys.path.insert(0, _backtest_dir)
+else:
+    # Déplacer en première position pour priorité à backtest/config.py
+    sys.path.remove(_backtest_dir)
+    sys.path.insert(0, _backtest_dir)
 
 from ema_mt5_bot_backtest import (
     MT5BacktestBot, BacktestStats, SimulatedTrade, TradeType, 
@@ -45,6 +51,8 @@ def load_config():
             'use_daily_preferred_symbol': getattr(config, 'USE_DAILY_PREFERRED_SYMBOL', True),
             'one_symbol_at_a_time': getattr(config, 'ONE_SYMBOL_AT_A_TIME', True),
             'preferred_symbol_by_day': getattr(config, 'PREFERRED_SYMBOL_BY_DAY', None),
+            'months_back': getattr(config, 'MONTHS_BACK', None),
+            'use_daily_loss_in_backtest': getattr(config, 'USE_DAILY_LOSS_IN_BACKTEST', False),
         }
     except ImportError:
         print("ERREUR: Fichier config.py non trouve dans le dossier backtest")
@@ -404,8 +412,9 @@ def print_advanced_analytics(bot: MT5BacktestBot):
     
     print("\n" + "=" * 70)
 
-def generate_excel_report(bot: MT5BacktestBot, stats: BacktestStats, output_file: str = "backtest_report.xlsx"):
-    """Génère un rapport Excel détaillé avec toutes les statistiques"""
+def generate_excel_report(bot: MT5BacktestBot, stats: BacktestStats, output_file: str = "backtest_report.xlsx", period_start=None, period_end=None):
+    """Génère un rapport Excel détaillé avec toutes les statistiques.
+    Si period_start et period_end sont fournis, l'onglet Par Mois affiche TOUS les mois de la période (même 0 trade)."""
     print(f"\nGeneration du rapport Excel: {output_file}...")
     
     wb = Workbook()
@@ -601,18 +610,35 @@ def generate_excel_report(bot: MT5BacktestBot, stats: BacktestStats, output_file
     
     # Calculer les stats par mois
     monthly_stats = defaultdict(lambda: {'trades': []})
-    
     for trade in bot.closed_trades:
-        month_key = (trade.exit_time.year, trade.exit_time.month)
-        monthly_stats[month_key]['trades'].append(trade)
+        # Gérer Timestamp pandas ou datetime
+        t = trade.exit_time
+        if hasattr(t, 'to_pydatetime'):
+            t = t.to_pydatetime()
+        year, month = t.year, t.month
+        monthly_stats[(year, month)]['trades'].append(trade)
     
-    # Trier par date
-    sorted_months = sorted(monthly_stats.keys())
+    # Couvrir TOUTE la période du backtest (tous les mois, même sans trade)
+    if period_start is not None and period_end is not None:
+        start_ts = pd.Timestamp(period_start)
+        end_ts = pd.Timestamp(period_end)
+        all_months = []
+        y, m = start_ts.year, start_ts.month
+        end_y, end_m = end_ts.year, end_ts.month
+        while (y, m) <= (end_y, end_m):
+            all_months.append((y, m))
+            m += 1
+            if m > 12:
+                m = 1
+                y += 1
+        sorted_months = all_months
+    else:
+        sorted_months = sorted(monthly_stats.keys())
     
     row = 2
     current_balance = bot.initial_balance
     for year, month in sorted_months:
-        trades = monthly_stats[(year, month)]['trades']
+        trades = monthly_stats.get((year, month), {}).get('trades', [])
         winning = [t for t in trades if t.profit > 0]
         losing = [t for t in trades if t.profit < 0]
         
@@ -1065,6 +1091,313 @@ def generate_excel_report(bot: MT5BacktestBot, stats: BacktestStats, output_file
     wb.save(output_file)
     print(f"OK Rapport Excel genere: {output_file}")
 
+
+def run_backtest_engine(bot, config, symbol_stats):
+    """
+    Lance la boucle de backtest (même stratégie que la prod).
+    Utilisé par run_backtest.py et run_backtest_last_7_days.py.
+    Modifie bot.closed_trades, bot.open_trades, bot.closed_trades_3r, etc.
+    """
+    use_daily_preferred = config.get('use_daily_preferred_symbol', True)
+    one_symbol_at_a_time = config.get('one_symbol_at_a_time', True)
+    preferred_by_day = config.get('preferred_symbol_by_day') or {}
+
+    events = []
+    for sym in bot.symbols:
+        if sym not in bot.historical_data:
+            continue
+        d = bot.historical_data[sym]
+        for i in range(50, len(d)):
+            ts = d.index[i]
+            if hasattr(ts, 'to_pydatetime'):
+                ts = ts.to_pydatetime()
+            events.append((ts, sym, i))
+    events.sort(key=lambda x: x[0])
+    total_bars = len(events)
+    processed_bars = 0
+    bars_skipped_daily_limit = 0
+    if events:
+        t0, t1 = events[0][0], events[-1][0]
+        print(f"   Timeline réelle: {t0.strftime('%Y-%m-%d %H:%M')} → {t1.strftime('%Y-%m-%d %H:%M')} ({total_bars} barres)")
+
+    for current_bar_time, symbol, bar_index in events:
+        df = bot.historical_data[symbol]
+        # Données jusqu'à bar_index inclus : market_data.iloc[-1] = barre courante (fermée), comme en prod (barres fermées)
+        data_index = bar_index
+        market_data = bot.get_market_data_at_index(symbol, data_index)
+        if market_data is None:
+            continue
+        current_bar = df.iloc[bar_index]
+
+        if symbol in bot.open_trades and len(bot.open_trades[symbol]) > 0:
+            trades_to_close = []
+            for trade_index, trade in enumerate(bot.open_trades[symbol]):
+                should_close = False
+                if trade.type == TradeType.LONG:
+                    if current_bar['low'] <= trade.stop_loss:
+                        trade.exit_price = trade.stop_loss
+                        trade.exit_time = df.index[bar_index]
+                        trade.exit_bar_index = bar_index
+                        trade.exit_reason = "SL"
+                        profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, TradeType.LONG)
+                        trade.profit = profit
+                        bot.current_balance += profit
+                        bot.equity = bot.current_balance
+                        if profit < 0:
+                            bot.last_loss_time = df.index[bar_index]
+                        bot.closed_trades.append(trade)
+                        should_close = True
+                    elif current_bar['high'] >= trade.take_profit:
+                        trade.exit_price = trade.take_profit
+                        trade.exit_time = df.index[bar_index]
+                        trade.exit_bar_index = bar_index
+                        trade.exit_reason = "TP"
+                        profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, TradeType.LONG)
+                        trade.profit = profit
+                        bot.current_balance += profit
+                        bot.equity = bot.current_balance
+                        bot.closed_trades.append(trade)
+                        should_close = True
+                elif trade.type == TradeType.SHORT:
+                    if current_bar['high'] >= trade.stop_loss:
+                        trade.exit_price = trade.stop_loss
+                        trade.exit_time = df.index[bar_index]
+                        trade.exit_bar_index = bar_index
+                        trade.exit_reason = "SL"
+                        profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, TradeType.SHORT)
+                        trade.profit = profit
+                        bot.current_balance += profit
+                        bot.equity = bot.current_balance
+                        if profit < 0:
+                            bot.last_loss_time = df.index[bar_index]
+                        bot.closed_trades.append(trade)
+                        should_close = True
+                    elif current_bar['low'] <= trade.take_profit:
+                        trade.exit_price = trade.take_profit
+                        trade.exit_time = df.index[bar_index]
+                        trade.exit_bar_index = bar_index
+                        trade.exit_reason = "TP"
+                        profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, TradeType.SHORT)
+                        trade.profit = profit
+                        bot.current_balance += profit
+                        bot.equity = bot.current_balance
+                        bot.closed_trades.append(trade)
+                        should_close = True
+                if should_close:
+                    trades_to_close.append(trade_index)
+            for trade_index in reversed(trades_to_close):
+                bot.open_trades[symbol].pop(trade_index)
+
+        if symbol in bot.open_trades_3r and len(bot.open_trades_3r[symbol]) > 0:
+            trades_to_close_3r = []
+            for trade_index, trade_3r in enumerate(bot.open_trades_3r[symbol]):
+                should_close = False
+                if trade_3r.type == TradeType.LONG:
+                    if current_bar['low'] <= trade_3r.stop_loss:
+                        trade_3r.exit_price = trade_3r.stop_loss
+                        trade_3r.exit_time = df.index[bar_index]
+                        trade_3r.exit_bar_index = bar_index
+                        trade_3r.exit_reason = "SL"
+                        profit = bot.calculate_profit(symbol, trade_3r.entry_price, trade_3r.exit_price, trade_3r.lot_size, TradeType.LONG)
+                        trade_3r.profit = profit
+                        bot.closed_trades_3r.append(trade_3r)
+                        should_close = True
+                    elif current_bar['high'] >= trade_3r.take_profit:
+                        trade_3r.exit_price = trade_3r.take_profit
+                        trade_3r.exit_time = df.index[bar_index]
+                        trade_3r.exit_bar_index = bar_index
+                        trade_3r.exit_reason = "TP"
+                        profit = bot.calculate_profit(symbol, trade_3r.entry_price, trade_3r.exit_price, trade_3r.lot_size, TradeType.LONG)
+                        trade_3r.profit = profit
+                        bot.closed_trades_3r.append(trade_3r)
+                        should_close = True
+                elif trade_3r.type == TradeType.SHORT:
+                    if current_bar['high'] >= trade_3r.stop_loss:
+                        trade_3r.exit_price = trade_3r.stop_loss
+                        trade_3r.exit_time = df.index[bar_index]
+                        trade_3r.exit_bar_index = bar_index
+                        trade_3r.exit_reason = "SL"
+                        profit = bot.calculate_profit(symbol, trade_3r.entry_price, trade_3r.exit_price, trade_3r.lot_size, TradeType.SHORT)
+                        trade_3r.profit = profit
+                        bot.closed_trades_3r.append(trade_3r)
+                        should_close = True
+                    elif current_bar['low'] <= trade_3r.take_profit:
+                        trade_3r.exit_price = trade_3r.take_profit
+                        trade_3r.exit_time = df.index[bar_index]
+                        trade_3r.exit_bar_index = bar_index
+                        trade_3r.exit_reason = "TP"
+                        profit = bot.calculate_profit(symbol, trade_3r.entry_price, trade_3r.exit_price, trade_3r.lot_size, TradeType.SHORT)
+                        trade_3r.profit = profit
+                        bot.closed_trades_3r.append(trade_3r)
+                        should_close = True
+                if should_close:
+                    trades_to_close_3r.append(trade_index)
+            for trade_index in reversed(trades_to_close_3r):
+                bot.open_trades_3r[symbol].pop(trade_index)
+            if symbol in bot.open_trades_3r and len(bot.open_trades_3r[symbol]) == 0:
+                del bot.open_trades_3r[symbol]
+
+        if symbol in bot.open_trades and len(bot.open_trades[symbol]) == 0:
+            del bot.open_trades[symbol]
+
+        current_bar_time = df.index[bar_index]
+        current_date_obj = current_bar_time.date()
+        if config.get('use_daily_loss_in_backtest', False):
+            can_trade, _ = bot.can_trade_today(current_date_obj)
+            if not can_trade:
+                bars_skipped_daily_limit += 1
+                continue
+        if symbol not in symbol_stats:
+            symbol_stats[symbol] = {'signals_detected': 0, 'trades_opened': 0, 'signals_blocked': 0}
+        if symbol in bot.last_bar_time and current_bar_time <= bot.last_bar_time[symbol]:
+            continue
+        bot.last_bar_time[symbol] = current_bar_time
+
+        if use_daily_preferred and preferred_by_day:
+            weekday = current_bar_time.weekday() if hasattr(current_bar_time, 'weekday') else getattr(current_bar_time, 'to_pydatetime', lambda: current_bar_time)().weekday()
+            preferred_symbol = preferred_by_day.get(weekday)
+            if preferred_symbol is not None and symbol != preferred_symbol:
+                continue
+
+        def has_other_symbol_with_positions():
+            if not one_symbol_at_a_time:
+                return False
+            for s, trades_list in bot.open_trades.items():
+                if s != symbol and trades_list:
+                    return True
+            return False
+
+        if ALLOW_LONG:
+            long_signal = bot.check_long_entry(market_data, symbol, current_bar_time)
+            if long_signal:
+                symbol_stats[symbol]['signals_detected'] = symbol_stats[symbol].get('signals_detected', 0) + 1
+                if not False:
+                    entry_price = current_bar['close']
+                    stop_loss = bot.find_last_low(symbol, market_data, 10)
+                    stop_distance = entry_price - stop_loss
+                    sl_distance_pct = abs(entry_price - stop_loss) / entry_price if entry_price > 0 else 0
+                    rr_ratio = bot.get_risk_reward_ratio(market_data)
+                    take_profit = entry_price + (stop_distance * rr_ratio)
+                    lot_size = bot.calculate_lot_size(symbol, entry_price, stop_loss)
+                    if lot_size <= 0:
+                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
+                    elif stop_loss <= 0 or stop_loss >= entry_price:
+                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
+                    elif sl_distance_pct > 0.05:
+                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
+                    elif has_other_symbol_with_positions():
+                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
+                    else:
+                        symbol_stats[symbol]['trades_opened'] = symbol_stats[symbol].get('trades_opened', 0) + 1
+                        trade = SimulatedTrade(
+                            symbol=symbol, type=TradeType.LONG,
+                            entry_price=entry_price, stop_loss=stop_loss, take_profit=take_profit, lot_size=lot_size,
+                            entry_time=current_bar_time, entry_bar_index=bar_index, risk_reward_ratio=rr_ratio
+                        )
+                        bot.classify_trade(trade, market_data)
+                        if symbol not in bot.open_trades:
+                            bot.open_trades[symbol] = []
+                        bot.open_trades[symbol].append(trade)
+                        bot.record_trade(symbol, TradeType.LONG, current_bar_time)
+                        if abs(rr_ratio - 1.5) < 0.01:
+                            take_profit_3r = entry_price + (stop_distance * 3.0)
+                            trade_3r = SimulatedTrade(
+                                symbol=symbol, type=TradeType.LONG,
+                                entry_price=entry_price, stop_loss=stop_loss, take_profit=take_profit_3r, lot_size=lot_size,
+                                entry_time=current_bar_time, entry_bar_index=bar_index, risk_reward_ratio=3.0
+                            )
+                            bot.classify_trade(trade_3r, market_data)
+                            if symbol not in bot.open_trades_3r:
+                                bot.open_trades_3r[symbol] = []
+                            bot.open_trades_3r[symbol].append(trade_3r)
+
+        if ALLOW_SHORT:
+            short_signal = bot.check_short_entry(market_data, symbol, current_bar_time)
+            if short_signal:
+                symbol_stats[symbol]['signals_detected'] = symbol_stats[symbol].get('signals_detected', 0) + 1
+                if not False:
+                    entry_price = current_bar['close']
+                    stop_loss = bot.find_last_high(symbol, market_data, 10)
+                    stop_distance = stop_loss - entry_price
+                    sl_distance_pct = abs(stop_loss - entry_price) / entry_price if entry_price > 0 else 0
+                    rr_ratio = bot.get_risk_reward_ratio(market_data)
+                    take_profit = entry_price - (stop_distance * rr_ratio)
+                    lot_size = bot.calculate_lot_size(symbol, entry_price, stop_loss)
+                    if lot_size <= 0:
+                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
+                    elif stop_loss <= 0 or stop_loss <= entry_price:
+                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
+                    elif sl_distance_pct > 0.05:
+                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
+                    elif has_other_symbol_with_positions():
+                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
+                    else:
+                        symbol_stats[symbol]['trades_opened'] = symbol_stats[symbol].get('trades_opened', 0) + 1
+                        trade = SimulatedTrade(
+                            symbol=symbol, type=TradeType.SHORT,
+                            entry_price=entry_price, stop_loss=stop_loss, take_profit=take_profit, lot_size=lot_size,
+                            entry_time=current_bar_time, entry_bar_index=bar_index, risk_reward_ratio=rr_ratio
+                        )
+                        bot.classify_trade(trade, market_data)
+                        if symbol not in bot.open_trades:
+                            bot.open_trades[symbol] = []
+                        bot.open_trades[symbol].append(trade)
+                        bot.record_trade(symbol, TradeType.SHORT, current_bar_time)
+                        if abs(rr_ratio - 1.5) < 0.01:
+                            take_profit_3r = entry_price - (stop_distance * 3.0)
+                            trade_3r = SimulatedTrade(
+                                symbol=symbol, type=TradeType.SHORT,
+                                entry_price=entry_price, stop_loss=stop_loss, take_profit=take_profit_3r, lot_size=lot_size,
+                                entry_time=current_bar_time, entry_bar_index=bar_index, risk_reward_ratio=3.0
+                            )
+                            bot.classify_trade(trade_3r, market_data)
+                            if symbol not in bot.open_trades_3r:
+                                bot.open_trades_3r[symbol] = []
+                            bot.open_trades_3r[symbol].append(trade_3r)
+
+        bot.equity_curve.append(bot.equity)
+        processed_bars += 1
+        if processed_bars % 10000 == 0:
+            print(f"   Progression: {processed_bars}/{total_bars} bougies traitées...")
+
+    if bars_skipped_daily_limit > 0:
+        print(f"\n   ⚠️  Bougies ignorées (limite perte quotidienne): {bars_skipped_daily_limit}")
+    for symbol in bot.symbols:
+        stats_s = symbol_stats.get(symbol, {})
+        signals = stats_s.get('signals_detected', 0)
+        trades = stats_s.get('trades_opened', 0)
+        blocked = stats_s.get('signals_blocked', 0)
+        closed_trades = len([t for t in bot.closed_trades if t.symbol == symbol])
+        print(f"   {symbol}: signaux={signals}, bloqués={blocked}, ouverts={trades}, fermés={closed_trades}")
+
+    for symbol, trades_list in list(bot.open_trades.items()):
+        df = bot.historical_data[symbol]
+        last_bar = df.iloc[-1]
+        for trade in trades_list:
+            trade.exit_price = last_bar['close']
+            trade.exit_time = df.index[-1]
+            trade.exit_bar_index = len(df) - 1
+            trade.exit_reason = "END"
+            profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, trade.type)
+            trade.profit = profit
+            bot.current_balance += profit
+            bot.closed_trades.append(trade)
+        del bot.open_trades[symbol]
+
+    for symbol, trades_list_3r in list(bot.open_trades_3r.items()):
+        df = bot.historical_data[symbol]
+        last_bar = df.iloc[-1]
+        for trade_3r in trades_list_3r:
+            trade_3r.exit_price = last_bar['close']
+            trade_3r.exit_time = df.index[-1]
+            trade_3r.exit_bar_index = len(df) - 1
+            trade_3r.exit_reason = "END"
+            profit = bot.calculate_profit(symbol, trade_3r.entry_price, trade_3r.exit_price, trade_3r.lot_size, trade_3r.type)
+            trade_3r.profit = profit
+            bot.closed_trades_3r.append(trade_3r)
+        del bot.open_trades_3r[symbol]
+
+
 def main():
     """Point d'entrée principal"""
     print("=" * 70)
@@ -1087,11 +1420,13 @@ def main():
     )
     
     # Charger les données historiques pour chaque symbole
-    # Utiliser use_all_available=True pour récupérer TOUTES les données disponibles
     use_all_available = getattr(config, 'USE_ALL_AVAILABLE_DATA', True)
+    months_back = config.get('months_back') or 0
     
     print("\nChargement des donnees historiques M5...")
-    if use_all_available:
+    if months_back > 0:
+        print(f"   Mode: Derniers {months_back} mois (plage de dates, pas de limite 50k barres)")
+    elif use_all_available:
         print("   Mode: Récupération de TOUTES les données disponibles (maximum possible)")
     else:
         print(f"   Mode: Récupération de {config['years_back']} ans de données")
@@ -1103,9 +1438,10 @@ def main():
         print(f"📊 CHARGEMENT DES DONNÉES POUR {symbol}")
         print(f"{'='*70}")
         df = bot.load_historical_data(
-            symbol, 
-            years=config['years_back'], 
-            use_all_available=use_all_available
+            symbol,
+            years=config['years_back'],
+            use_all_available=use_all_available if months_back <= 0 else False,
+            last_n_months=months_back if months_back > 0 else None
         )
         if df is not None and len(df) > 0:
             # Utiliser le symbole validé (peut être différent de celui dans config)
@@ -1113,16 +1449,20 @@ def main():
             # Stocker avec le symbole original comme clé
             bot.historical_data[symbol] = df
             validated_symbols.append(symbol)
+            period_days = (df.index[-1] - df.index[0]).days if len(df) > 1 else 0
             symbol_stats[symbol] = {
                 'bars_loaded': len(df),
                 'period_start': df.index[0],
                 'period_end': df.index[-1],
+                'period_days': period_days,
                 'signals_detected': 0,
                 'trades_opened': 0,
                 'signals_blocked': 0
             }
             print(f"✅ {symbol}: {len(df)} bougies chargées")
-            print(f"   Période: {df.index[0]} → {df.index[-1]}")
+            print(f"   Période: {df.index[0]} → {df.index[-1]} ({period_days} jours)")
+            if months_back > 0 and period_days < (months_back * 25):
+                print(f"   ⚠️ Données courtes: {period_days}j au lieu de ~{months_back*30}j. Téléchargez l'historique dans MT5 (graphique M5, défilez jusqu'à aujourd'hui).")
         else:
             print(f"❌ ATTENTION: Impossible de charger les donnees pour {symbol}")
             symbol_stats[symbol] = {'bars_loaded': 0, 'error': 'Données non chargées'}
@@ -1131,7 +1471,12 @@ def main():
     if USE_H1_TREND_FILTER:
         print("\nChargement des donnees historiques H1 (analyse de tendance)...")
         for symbol in validated_symbols:
-            df_h1 = bot.load_h1_data(symbol, years=config['years_back'], use_all_available=config.get('use_all_available', True))
+            df_h1 = bot.load_h1_data(
+                symbol,
+                years=config['years_back'],
+                use_all_available=config.get('use_all_available', True) if months_back <= 0 else False,
+                last_n_months=months_back if months_back > 0 else None
+            )
             if df_h1 is not None:
                 bot.h1_data[symbol] = df_h1
                 print(f"   OK {symbol}: {len(df_h1)} bougies H1 chargees")
@@ -1156,6 +1501,41 @@ def main():
         print("❌ ERREUR: Aucune donnee historique chargee. Arret.")
         sys.exit(1)
     
+    # Quand months_back > 0: forcer la fenêtre exacte (début = fin - N mois) pour garantir la période demandée
+    if months_back > 0:
+        # Utiliser explicitement months_back pour la durée (pas years_back)
+        n_days = int(months_back * 30)
+        end_ts = max(pd.Timestamp(df.index[-1]) for df in bot.historical_data.values())
+        start_ts = end_ts - pd.Timedelta(days=n_days)
+        # Aligner le timezone si l'index des données est timezone-aware (évite de perdre des barres)
+        sample_df = next(iter(bot.historical_data.values()))
+        if hasattr(sample_df.index, 'tz') and sample_df.index.tz is not None:
+            tz = sample_df.index.tz
+            start_ts = start_ts.tz_localize(tz) if start_ts.tzinfo is None else start_ts.tz_convert(tz)
+            end_ts = end_ts.tz_localize(tz) if end_ts.tzinfo is None else end_ts.tz_convert(tz)
+        print(f"\n📅 Fenêtre forcée: {months_back} derniers mois ({start_ts.strftime('%Y-%m-%d')} → {end_ts.strftime('%Y-%m-%d')})")
+        for symbol in list(bot.historical_data.keys()):
+            df = bot.historical_data[symbol]
+            before = len(df)
+            df = df[(df.index >= start_ts) & (df.index <= end_ts)].copy()
+            df = df[~df.index.duplicated(keep='first')]
+            df.sort_index(inplace=True)
+            if len(df) < 50:
+                print(f"   ⚠️ {symbol}: trop peu de barres après filtre ({len(df)}), on garde les données telles quelles")
+                continue
+            bot.historical_data[symbol] = df
+            symbol_stats[symbol]['bars_loaded'] = len(df)
+            symbol_stats[symbol]['period_start'] = df.index[0]
+            symbol_stats[symbol]['period_end'] = df.index[-1]
+            print(f"   {symbol}: {before} → {len(df)} barres ({df.index[0].strftime('%Y-%m-%d')} → {df.index[-1].strftime('%Y-%m-%d')})")
+        if bot.h1_data:
+            for symbol in list(bot.h1_data.keys()):
+                df_h1 = bot.h1_data[symbol]
+                df_h1 = df_h1[(df_h1.index >= start_ts) & (df_h1.index <= end_ts)].copy()
+                df_h1 = df_h1[~df_h1.index.duplicated(keep='first')].sort_index()
+                if len(df_h1) > 0:
+                    bot.h1_data[symbol] = df_h1
+    
     # Lancer le backtest
     print("\nDemarrage du backtest...")
     print("   Cela peut prendre plusieurs minutes...\n")
@@ -1169,34 +1549,28 @@ def main():
         print("ERREUR: Aucune date trouvee")
         sys.exit(1)
     
-    # Déterminer la période de backtest (commune à tous les symboles)
+    # Déterminer la période de backtest
     min_date = max(df.index[0] for df in bot.historical_data.values())
-    max_date = min(df.index[-1] for df in bot.historical_data.values())
+    max_date_actual = min(df.index[-1] for df in bot.historical_data.values())  # fin réelle (limitée par l'actif qui s'arrête le plus tôt)
+    max_date_latest = max(df.index[-1] for df in bot.historical_data.values())
     
-    print(f"Periode de backtest: {min_date} a {max_date}")
-    
-    # Construire une timeline unifiée : toutes les bougies de tous les symboles, triées par date
-    # Permet de comparer les 2 actifs sur la même période (ordre chronologique)
-    events = []
-    for sym in bot.symbols:
-        if sym not in bot.historical_data:
-            print(f"⚠️  {sym}: Données non chargées, ignoré")
-            continue
-        d = bot.historical_data[sym]
-        for i in range(50, len(d)):
-            events.append((d.index[i], sym, i))
-    events.sort(key=lambda x: x[0])
-    total_bars = len(events)
-    processed_bars = 0
+    print(f"Periode de backtest: {min_date} a {max_date_actual}")
+    if max_date_actual != max_date_latest:
+        # Un ou plusieurs actifs ont moins d'historique → on indique lesquels
+        for sym, df in bot.historical_data.items():
+            if df.index[-1] < max_date_latest:
+                print(f"   ⚠️ {sym} s'arrête le {df.index[-1].strftime('%Y-%m-%d')} (données manquantes après cette date)")
+        print(f"   → Pour avoir les 8 derniers mois complets, téléchargez l'historique MT5 jusqu'à aujourd'hui pour tous les actifs.")
     
     print(f"\n{'='*70}")
     print(f"🔄 DÉMARRAGE DU BACKTEST (timeline unifiée)")
     print(f"{'='*70}")
-    print(f"\n📊 {len(bot.symbols)} actif(s) à comparer: {', '.join(bot.symbols)}")
-    print(f"   Timeline: {total_bars} bougies au total (ordre chronologique)")
     use_daily_preferred = config.get('use_daily_preferred_symbol', True)
     one_symbol_at_a_time = config.get('one_symbol_at_a_time', True)
     preferred_by_day = config.get('preferred_symbol_by_day') or {}
+    total_bars = sum(max(0, len(bot.historical_data[s]) - 50) for s in bot.symbols if s in bot.historical_data)
+    print(f"\n📊 {len(bot.symbols)} actif(s) à comparer: {', '.join(bot.symbols)}")
+    print(f"   Timeline: {total_bars} bougies au total (ordre chronologique)")
     if use_daily_preferred and preferred_by_day:
         day_names = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"]
         parts = [f"{day_names[k]}={v}" for k, v in sorted(preferred_by_day.items()) if 0 <= k < 5]
@@ -1207,383 +1581,21 @@ def main():
     if len(bot.symbols) > 1:
         print(f"   ⚠️  Limite perte quotidienne ({bot.max_daily_loss:.0f}) partagée entre tous les actifs.")
     
-    bars_skipped_daily_limit = 0  # Compteur: bougies ignorées car limite quotidienne atteinte
+    run_backtest_engine(bot, config, symbol_stats)
     
-    for current_bar_time, symbol, bar_index in events:
-        df = bot.historical_data[symbol]
-        
-        # Récupérer les données jusqu'à cet index
-        market_data = bot.get_market_data_at_index(symbol, bar_index)
-        if market_data is None:
-            continue
-        
-        # Définir current_bar (utilisé pour SL/TP et entrées)
-        current_bar = df.iloc[bar_index]
-        
-        # Vérifier les positions ouvertes (SL/TP) - Plusieurs trades par symbole possibles
-        if symbol in bot.open_trades and len(bot.open_trades[symbol]) > 0:
-            # Parcourir tous les trades ouverts pour ce symbole (en ordre inverse pour éviter les problèmes d'index)
-            trades_to_close = []
-            for trade_index, trade in enumerate(bot.open_trades[symbol]):
-                should_close = False
-                
-                # Vérifier SL/TP
-                if trade.type == TradeType.LONG:
-                    if current_bar['low'] <= trade.stop_loss:
-                        # SL touché
-                        trade.exit_price = trade.stop_loss
-                        trade.exit_time = df.index[bar_index]
-                        trade.exit_bar_index = bar_index
-                        trade.exit_reason = "SL"
-                        profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, TradeType.LONG)
-                        trade.profit = profit
-                        bot.current_balance += profit
-                        bot.equity = bot.current_balance
-                        # Enregistrer la perte pour cooldown
-                        if profit < 0:
-                            bot.last_loss_time = df.index[bar_index]
-                        bot.closed_trades.append(trade)
-                        should_close = True
-                    elif current_bar['high'] >= trade.take_profit:
-                        # TP touché
-                        trade.exit_price = trade.take_profit
-                        trade.exit_time = df.index[bar_index]
-                        trade.exit_bar_index = bar_index
-                        trade.exit_reason = "TP"
-                        profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, TradeType.LONG)
-                        trade.profit = profit
-                        bot.current_balance += profit
-                        bot.equity = bot.current_balance
-                        bot.closed_trades.append(trade)
-                        should_close = True
-                
-                elif trade.type == TradeType.SHORT:
-                    if current_bar['high'] >= trade.stop_loss:
-                        # SL touché
-                        trade.exit_price = trade.stop_loss
-                        trade.exit_time = df.index[bar_index]
-                        trade.exit_bar_index = bar_index
-                        trade.exit_reason = "SL"
-                        profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, TradeType.SHORT)
-                        trade.profit = profit
-                        bot.current_balance += profit
-                        bot.equity = bot.current_balance
-                        # Enregistrer la perte pour cooldown
-                        if profit < 0:
-                            bot.last_loss_time = df.index[bar_index]
-                        bot.closed_trades.append(trade)
-                        should_close = True
-                    elif current_bar['low'] <= trade.take_profit:
-                        # TP touché
-                        trade.exit_price = trade.take_profit
-                        trade.exit_time = df.index[bar_index]
-                        trade.exit_bar_index = bar_index
-                        trade.exit_reason = "TP"
-                        profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, TradeType.SHORT)
-                        trade.profit = profit
-                        bot.current_balance += profit
-                        bot.equity = bot.current_balance
-                        bot.closed_trades.append(trade)
-                        should_close = True
-                
-                if should_close:
-                    trades_to_close.append(trade_index)
-            
-            # Fermer les trades (en ordre inverse pour éviter les problèmes d'index)
-            for trade_index in reversed(trades_to_close):
-                bot.open_trades[symbol].pop(trade_index)
-        
-        # Vérifier les positions ouvertes 3.0R (simulation parallèle)
-        if symbol in bot.open_trades_3r and len(bot.open_trades_3r[symbol]) > 0:
-            trades_to_close_3r = []
-            for trade_index, trade_3r in enumerate(bot.open_trades_3r[symbol]):
-                should_close = False
-                
-                # Vérifier SL/TP pour le trade 3.0R
-                if trade_3r.type == TradeType.LONG:
-                    if current_bar['low'] <= trade_3r.stop_loss:
-                        # SL touché
-                        trade_3r.exit_price = trade_3r.stop_loss
-                        trade_3r.exit_time = df.index[bar_index]
-                        trade_3r.exit_bar_index = bar_index
-                        trade_3r.exit_reason = "SL"
-                        profit = bot.calculate_profit(symbol, trade_3r.entry_price, trade_3r.exit_price, trade_3r.lot_size, TradeType.LONG)
-                        trade_3r.profit = profit
-                        bot.closed_trades_3r.append(trade_3r)
-                        should_close = True
-                    elif current_bar['high'] >= trade_3r.take_profit:
-                        # TP touché
-                        trade_3r.exit_price = trade_3r.take_profit
-                        trade_3r.exit_time = df.index[bar_index]
-                        trade_3r.exit_bar_index = bar_index
-                        trade_3r.exit_reason = "TP"
-                        profit = bot.calculate_profit(symbol, trade_3r.entry_price, trade_3r.exit_price, trade_3r.lot_size, TradeType.LONG)
-                        trade_3r.profit = profit
-                        bot.closed_trades_3r.append(trade_3r)
-                        should_close = True
-                
-                elif trade_3r.type == TradeType.SHORT:
-                    if current_bar['high'] >= trade_3r.stop_loss:
-                        # SL touché
-                        trade_3r.exit_price = trade_3r.stop_loss
-                        trade_3r.exit_time = df.index[bar_index]
-                        trade_3r.exit_bar_index = bar_index
-                        trade_3r.exit_reason = "SL"
-                        profit = bot.calculate_profit(symbol, trade_3r.entry_price, trade_3r.exit_price, trade_3r.lot_size, TradeType.SHORT)
-                        trade_3r.profit = profit
-                        bot.closed_trades_3r.append(trade_3r)
-                        should_close = True
-                    elif current_bar['low'] <= trade_3r.take_profit:
-                        # TP touché
-                        trade_3r.exit_price = trade_3r.take_profit
-                        trade_3r.exit_time = df.index[bar_index]
-                        trade_3r.exit_bar_index = bar_index
-                        trade_3r.exit_reason = "TP"
-                        profit = bot.calculate_profit(symbol, trade_3r.entry_price, trade_3r.exit_price, trade_3r.lot_size, TradeType.SHORT)
-                        trade_3r.profit = profit
-                        bot.closed_trades_3r.append(trade_3r)
-                        should_close = True
-                
-                if should_close:
-                    trades_to_close_3r.append(trade_index)
-            
-            # Fermer les trades 3.0R (en ordre inverse pour éviter les problèmes d'index)
-            for trade_index in reversed(trades_to_close_3r):
-                bot.open_trades_3r[symbol].pop(trade_index)
-            
-            # Supprimer la liste 3.0R si elle est vide
-            if symbol in bot.open_trades_3r and len(bot.open_trades_3r[symbol]) == 0:
-                del bot.open_trades_3r[symbol]
-        
-        # Supprimer la liste normale si elle est vide (après vérification des trades normaux)
-        if symbol in bot.open_trades and len(bot.open_trades[symbol]) == 0:
-            del bot.open_trades[symbol]
-        
-        # Traiter les signaux d'entrée
-        current_bar_time = df.index[bar_index]
-        current_date_obj = current_bar_time.date()
-        
-        # Vérifier protection quotidienne (limite partagée entre tous les actifs)
-        can_trade, _ = bot.can_trade_today(current_date_obj)
-        if not can_trade:
-            bars_skipped_daily_limit += 1
-            continue
-        
-        # Initialiser les statistiques si nécessaire
-        if symbol not in symbol_stats:
-            symbol_stats[symbol] = {'signals_detected': 0, 'trades_opened': 0, 'signals_blocked': 0}
-        
-        # Vérifier nouvelle bougie
-        if symbol in bot.last_bar_time and current_bar_time <= bot.last_bar_time[symbol]:
-            continue
-        
-        bot.last_bar_time[symbol] = current_bar_time
-        
-        # Actif du jour : ne trader que l'actif préféré ce jour-là (config PREFERRED_SYMBOL_BY_DAY)
-        if use_daily_preferred and preferred_by_day:
-            weekday = current_bar_time.weekday() if hasattr(current_bar_time, 'weekday') else getattr(current_bar_time, 'to_pydatetime', lambda: current_bar_time)().weekday()
-            preferred_symbol = preferred_by_day.get(weekday)
-            if preferred_symbol is not None and symbol != preferred_symbol:
-                continue  # Ce n'est pas l'actif du jour → pas d'ouverture (SL/TP déjà traités au-dessus)
-        
-        # Un seul actif à la fois : ne pas ouvrir si un autre actif a déjà des positions
-        def has_other_symbol_with_positions():
-            if not one_symbol_at_a_time:
-                return False
-            for s, trades_list in bot.open_trades.items():
-                if s != symbol and trades_list:
-                    return True
-            return False
-        
-        # Vérifier les signaux (avec filtre H1 pour ne trader que dans le sens de la tendance)
-        if ALLOW_LONG:
-            long_signal = bot.check_long_entry(market_data, symbol, current_bar_time)
-            if long_signal:
-                symbol_stats[symbol]['signals_detected'] = symbol_stats[symbol].get('signals_detected', 0) + 1
-                has_recent = False
-                if not has_recent:
-                    # Ouvrir position LONG simulée
-                    entry_price = current_bar['close']
-                    stop_loss = bot.find_last_low(symbol, market_data, 10)
-                    stop_distance = entry_price - stop_loss
-                    sl_distance_pct = abs(entry_price - stop_loss) / entry_price if entry_price > 0 else 0
-                    rr_ratio = bot.get_risk_reward_ratio(market_data)
-                    take_profit = entry_price + (stop_distance * rr_ratio)
-                    lot_size = bot.calculate_lot_size(symbol, entry_price, stop_loss)
-                    if lot_size <= 0:
-                        if symbol_stats[symbol].get('signals_detected', 0) <= 10:
-                            print(f"   ⚠️ [{symbol}] LONG signal #{symbol_stats[symbol].get('signals_detected', 0)} bloqué: lot_size={lot_size}")
-                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
-                    elif stop_loss <= 0 or stop_loss >= entry_price:
-                        if symbol_stats[symbol].get('signals_detected', 0) <= 10:
-                            print(f"   ⚠️ [{symbol}] LONG signal #{symbol_stats[symbol].get('signals_detected', 0)} bloqué: stop_loss={stop_loss:.2f}, entry={entry_price:.2f}")
-                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
-                    elif sl_distance_pct > 0.05:
-                        if symbol_stats[symbol].get('signals_detected', 0) <= 10:
-                            print(f"   ⚠️ [{symbol}] LONG signal #{symbol_stats[symbol].get('signals_detected', 0)} bloqué: stop_loss trop éloigné ({sl_distance_pct*100:.2f}% > 5%)")
-                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
-                    elif has_other_symbol_with_positions():
-                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
-                    else:
-                        symbol_stats[symbol]['trades_opened'] = symbol_stats[symbol].get('trades_opened', 0) + 1
-                        if symbol_stats[symbol].get('trades_opened', 0) <= 5:
-                            print(f"   ✅ [{symbol}] LONG trade #{symbol_stats[symbol].get('trades_opened', 0)} ouvert! Entry={entry_price:.2f}, SL={stop_loss:.2f}, R:R=1:{rr_ratio:.1f}")
-                        trade = SimulatedTrade(
-                            symbol=symbol,
-                            type=TradeType.LONG,
-                            entry_price=entry_price,
-                            stop_loss=stop_loss,
-                            take_profit=take_profit,
-                            lot_size=lot_size,
-                            entry_time=current_bar_time,
-                            entry_bar_index=bar_index,
-                            risk_reward_ratio=rr_ratio
-                        )
-                        bot.classify_trade(trade, market_data)
-                        if symbol not in bot.open_trades:
-                            bot.open_trades[symbol] = []
-                        bot.open_trades[symbol].append(trade)
-                        bot.record_trade(symbol, TradeType.LONG, current_bar_time)
-                        if abs(rr_ratio - 1.5) < 0.01:
-                            take_profit_3r = entry_price + (stop_distance * 3.0)
-                            trade_3r = SimulatedTrade(
-                                symbol=symbol,
-                                type=TradeType.LONG,
-                                entry_price=entry_price,
-                                stop_loss=stop_loss,
-                                take_profit=take_profit_3r,
-                                lot_size=lot_size,
-                                entry_time=current_bar_time,
-                                entry_bar_index=bar_index,
-                                risk_reward_ratio=3.0
-                            )
-                            bot.classify_trade(trade_3r, market_data)
-                            if symbol not in bot.open_trades_3r:
-                                bot.open_trades_3r[symbol] = []
-                            bot.open_trades_3r[symbol].append(trade_3r)
-        
-        # Vérifier SHORT indépendamment de LONG (permet LONG et SHORT simultanés)
-        if ALLOW_SHORT:
-            short_signal = bot.check_short_entry(market_data, symbol, current_bar_time)
-            if short_signal:
-                symbol_stats[symbol]['signals_detected'] = symbol_stats[symbol].get('signals_detected', 0) + 1
-                has_recent = False
-                if not has_recent:
-                    entry_price = current_bar['close']
-                    stop_loss = bot.find_last_high(symbol, market_data, 10)
-                    stop_distance = stop_loss - entry_price
-                    sl_distance_pct = abs(stop_loss - entry_price) / entry_price if entry_price > 0 else 0
-                    rr_ratio = bot.get_risk_reward_ratio(market_data)
-                    take_profit = entry_price - (stop_distance * rr_ratio)
-                    lot_size = bot.calculate_lot_size(symbol, entry_price, stop_loss)
-                    if lot_size <= 0:
-                        if symbol_stats[symbol].get('signals_detected', 0) <= 10:
-                            print(f"   ⚠️ [{symbol}] SHORT signal #{symbol_stats[symbol].get('signals_detected', 0)} bloqué: lot_size={lot_size}")
-                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
-                    elif stop_loss <= 0 or stop_loss <= entry_price:
-                        if symbol_stats[symbol].get('signals_detected', 0) <= 10:
-                            print(f"   ⚠️ [{symbol}] SHORT signal #{symbol_stats[symbol].get('signals_detected', 0)} bloqué: stop_loss={stop_loss:.2f}, entry={entry_price:.2f}")
-                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
-                    elif sl_distance_pct > 0.05:
-                        if symbol_stats[symbol].get('signals_detected', 0) <= 10:
-                            print(f"   ⚠️ [{symbol}] SHORT signal #{symbol_stats[symbol].get('signals_detected', 0)} bloqué: stop-loss trop éloigné ({sl_distance_pct*100:.2f}% > 5%)")
-                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
-                    elif has_other_symbol_with_positions():
-                        symbol_stats[symbol]['signals_blocked'] = symbol_stats[symbol].get('signals_blocked', 0) + 1
-                    else:
-                        symbol_stats[symbol]['trades_opened'] = symbol_stats[symbol].get('trades_opened', 0) + 1
-                        if symbol_stats[symbol].get('trades_opened', 0) <= 5:
-                            print(f"   ✅ [{symbol}] SHORT trade #{symbol_stats[symbol].get('trades_opened', 0)} ouvert! Entry={entry_price:.2f}, SL={stop_loss:.2f}, R:R=1:{rr_ratio:.1f}")
-                        trade = SimulatedTrade(
-                            symbol=symbol,
-                            type=TradeType.SHORT,
-                            entry_price=entry_price,
-                            stop_loss=stop_loss,
-                            take_profit=take_profit,
-                            lot_size=lot_size,
-                            entry_time=current_bar_time,
-                            entry_bar_index=bar_index,
-                            risk_reward_ratio=rr_ratio
-                        )
-                        bot.classify_trade(trade, market_data)
-                        if symbol not in bot.open_trades:
-                            bot.open_trades[symbol] = []
-                        bot.open_trades[symbol].append(trade)
-                        bot.record_trade(symbol, TradeType.SHORT, current_bar_time)
-                        if abs(rr_ratio - 1.5) < 0.01:
-                            take_profit_3r = entry_price - (stop_distance * 3.0)
-                            trade_3r = SimulatedTrade(
-                                symbol=symbol,
-                                type=TradeType.SHORT,
-                                entry_price=entry_price,
-                                stop_loss=stop_loss,
-                                take_profit=take_profit_3r,
-                                lot_size=lot_size,
-                                entry_time=current_bar_time,
-                                entry_bar_index=bar_index,
-                                risk_reward_ratio=3.0
-                            )
-                            bot.classify_trade(trade_3r, market_data)
-                            if symbol not in bot.open_trades_3r:
-                                bot.open_trades_3r[symbol] = []
-                            bot.open_trades_3r[symbol].append(trade_3r)
-        
-        # Mettre à jour l'equity curve
-        bot.equity_curve.append(bot.equity)
-        processed_bars += 1
-        if processed_bars % 10000 == 0:
-            print(f"   Progression: {processed_bars}/{total_bars} bougies traitées...")
-    
-    # Afficher les statistiques par symbole
-    print(f"\n{'='*70}")
-    print(f"📊 STATISTIQUES PAR SYMBOLE")
-    print(f"{'='*70}")
-    if bars_skipped_daily_limit > 0:
-        print(f"\n   ⚠️  Bougies ignorées (limite perte quotidienne atteinte): {bars_skipped_daily_limit}")
-        print(f"      → C'est pour cela qu'avec 2 actifs on peut avoir MOINS de trades qu'avec 1 seul.")
-    for symbol in bot.symbols:
-        stats = symbol_stats.get(symbol, {})
-        signals = stats.get('signals_detected', 0)
-        trades = stats.get('trades_opened', 0)
-        blocked = stats.get('signals_blocked', 0)
-        closed_trades = len([t for t in bot.closed_trades if t.symbol == symbol])
-        print(f"\n{symbol}:")
-        print(f"   Signaux détectés: {signals}")
-        print(f"   Signaux bloqués: {blocked}")
-        print(f"   Trades ouverts: {trades}")
-        print(f"   Trades fermés: {closed_trades}")
-        if signals > 0 and trades == 0:
-            print(f"   ⚠️  PROBLÈME: {signals} signaux détectés mais aucun trade ouvert!")
-            print(f"      Raison probable: stop_loss ou lot_size invalide")
-    
-    # Fermer les positions restantes à la fin (plusieurs trades par symbole)
-    for symbol, trades_list in list(bot.open_trades.items()):
-        df = bot.historical_data[symbol]
-        last_bar = df.iloc[-1]
-        for trade in trades_list:
-            trade.exit_price = last_bar['close']
-            trade.exit_time = df.index[-1]
-            trade.exit_bar_index = len(df) - 1
-            trade.exit_reason = "END"
-            profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, trade.type)
-            trade.profit = profit
-            bot.current_balance += profit
-            bot.closed_trades.append(trade)
-        del bot.open_trades[symbol]
-    
-    # Fermer les positions 3.0R restantes à la fin
-    for symbol, trades_list_3r in list(bot.open_trades_3r.items()):
-        df = bot.historical_data[symbol]
-        last_bar = df.iloc[-1]
-        for trade_3r in trades_list_3r:
-            trade_3r.exit_price = last_bar['close']
-            trade_3r.exit_time = df.index[-1]
-            trade_3r.exit_bar_index = len(df) - 1
-            trade_3r.exit_reason = "END"
-            profit = bot.calculate_profit(symbol, trade_3r.entry_price, trade_3r.exit_price, trade_3r.lot_size, trade_3r.type)
-            trade_3r.profit = profit
-            bot.closed_trades_3r.append(trade_3r)
-        del bot.open_trades_3r[symbol]
+    # Diagnostic: période réelle des sorties de trades (pour vérifier les 8 mois)
+    if bot.closed_trades:
+        exit_times = []
+        for t in bot.closed_trades:
+            ts = t.exit_time
+            if hasattr(ts, 'to_pydatetime'):
+                ts = ts.to_pydatetime()
+            exit_times.append(ts)
+        min_exit = min(exit_times)
+        max_exit = max(exit_times)
+        months_count = Counter((t.year, t.month) for t in exit_times)
+        print(f"\n📅 Période des sorties de trades: {min_exit.strftime('%Y-%m-%d')} → {max_exit.strftime('%Y-%m-%d')}")
+        print(f"   Trades par mois: {dict(sorted(months_count.items()))}")
     
     # Calculer et afficher les statistiques
     stats = calculate_stats(bot)
@@ -1592,10 +1604,10 @@ def main():
     # Afficher les analytics avancées
     print_advanced_analytics(bot)
     
-    # Générer le rapport Excel
+    # Générer le rapport Excel (avec période complète pour l'onglet Par Mois)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     excel_file = f"backtest_report_{timestamp}.xlsx"
-    generate_excel_report(bot, stats, excel_file)
+    generate_excel_report(bot, stats, excel_file, period_start=min_date, period_end=max_date_actual)
     
     # Analyse détaillée
     print("\n" + "=" * 70)

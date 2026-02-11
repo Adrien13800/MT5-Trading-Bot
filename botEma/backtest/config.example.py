@@ -36,3 +36,7 @@ MAX_DAILY_LOSS = -250.0  # Arrêter le trading si perte quotidienne atteint cett
 INITIAL_BALANCE = 10000.0  # Balance de départ pour le backtest
 YEARS_BACK = 3             # Nombre d'années de données historiques (si USE_ALL_AVAILABLE_DATA=False)
 USE_ALL_AVAILABLE_DATA = True  # Si True, récupère TOUTES les données disponibles
+# Limiter la période du backtest aux N derniers mois (None ou 0 = utiliser toute la période chargée)
+MONTHS_BACK = 8  # Ex: 8 = backtest sur les 8 derniers mois seulement
+# Appliquer la limite de perte quotidienne en backtest (False = ignorer → backtest sur toute la période)
+USE_DAILY_LOSS_IN_BACKTEST = False

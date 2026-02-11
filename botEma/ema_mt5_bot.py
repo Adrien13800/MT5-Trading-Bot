@@ -46,9 +46,9 @@ ALLOW_SHORT = True
 MAGIC_NUMBER = 123456
 TRADE_COMMENT = "EMA20_SMA50_Cross"
 
-# Protection contre le sur-trading
-MIN_BARS_BETWEEN_SAME_SETUP = 5  # 5 bougies (25 min) entre mêmes setups
-COOLDOWN_AFTER_LOSS = 5  # 5 bougies après perte
+# Protection contre le sur-trading (aligné backtest : 0 = pas de restriction)
+MIN_BARS_BETWEEN_SAME_SETUP = 0
+COOLDOWN_AFTER_LOSS = 0
 
 # Filtres pour plus de trades
 USE_TREND_FILTER = True  # Filtre de tendance (désactivé pour stratégie croisement)
@@ -210,7 +210,8 @@ class MT5TradingBot:
         self.open_trades: Dict[str, List[Trade]] = {}  # Liste de trades par symbole (plusieurs positions possibles)
         self.trade_history: List[Trade] = []
         self.last_bar_time: Dict[str, datetime] = {}
-        self.daily_start_equity: Optional[float] = None  # Utilise equity pour FTMO (inclut positions ouvertes)
+        self.daily_start_equity: Optional[float] = None  # Pour affichage / log
+        self.daily_start_balance: Optional[float] = None  # Aligné backtest : protection quotidienne sur balance (trades fermés)
         self.trading_stopped_daily: bool = False
         self.last_trading_date: Optional[datetime.date] = None
         # Suivi des dernières positions par symbole et type pour éviter le sur-trading
@@ -632,12 +633,10 @@ class MT5TradingBot:
             return None
     
     def check_ema_slope(self, df: pd.DataFrame) -> bool:
-        """Vérifie si la bougie clôture au-dessus ou en-dessous de l'EMA 20"""
+        """Vérifie si la bougie clôture au-dessus ou en-dessous de l'EMA 20. Aligné backtest : iloc[-1]."""
         if len(df) < 2:
             return False
-        
-        # Après sort_index: iloc[-1]=barre en cours, iloc[-2]=dernière barre fermée
-        current = df.iloc[-2]
+        current = df.iloc[-1]
         price_close = current['close']
         ema20 = current[f'EMA_{EMA_FAST}']
         
@@ -646,16 +645,11 @@ class MT5TradingBot:
         return price_close != ema20
     
     def is_ema200_flat(self, df: pd.DataFrame) -> bool:
-        """
-        Détermine si la SMA 50 est plate (sans pente significative)
-        Retourne True si plate, False si penche dans un sens
-        """
-        if len(df) < 3:
-            return True  # Par défaut considéré comme plate si pas assez de données
-        
-        # Après sort_index: iloc[-2]=dernière barre fermée, iloc[-3]=avant-dernière
-        sma50_current = df[f'SMA_{SMA_SLOW}'].iloc[-2]
-        sma50_prev = df[f'SMA_{SMA_SLOW}'].iloc[-3]
+        """SMA 50 plate ou non. Aligné backtest : iloc[-1]=dernière barre fermée. Même seuil que backtest (len < 2)."""
+        if len(df) < 2:
+            return True
+        sma50_current = df[f'SMA_{SMA_SLOW}'].iloc[-1]
+        sma50_prev = df[f'SMA_{SMA_SLOW}'].iloc[-2]
         
         slope = abs(sma50_current - sma50_prev)
         min_slope = sma50_current * SMA_SLOPE_MIN
@@ -675,28 +669,20 @@ class MT5TradingBot:
             return RISK_REWARD_RATIO_TRENDING
     
     def check_atr_filter(self, df: pd.DataFrame) -> bool:
-        """Vérifie la volatilité avec ATR (anti faux signaux - éviter marchés compressés)"""
+        """Vérifie la volatilité avec ATR (anti faux signaux). Aligné backtest : len < ATR_LOOKBACK + 1."""
         if not USE_ATR_FILTER or 'ATR' not in df.columns:
             return True
         
-        if len(df) < 2 + ATR_LOOKBACK:
+        if len(df) < ATR_LOOKBACK + 1:
             return False
-        
-        # Après sort_index: iloc[-2]=dernière barre fermée
-        current_atr = df['ATR'].iloc[-2]
+        current_atr = df['ATR'].iloc[-1]
         if pd.isna(current_atr) or current_atr <= 0:
             return True
-        
-        # Calculer la moyenne ATR sur les X dernières périodes (exclure la dernière barre fermée)
-        atr_values = df['ATR'].iloc[-2 - ATR_LOOKBACK:-2]
+        atr_values = df['ATR'].iloc[-1 - ATR_LOOKBACK:-1]
         atr_avg = atr_values.mean()
-        
-        # Ne pas trader si ATR < moyenne ATR (marché compressé)
         if current_atr < (atr_avg * ATR_MULTIPLIER):
             return False
-        
-        # Vérifier aussi que la bougie actuelle a une range suffisante
-        candle_range = df['high'].iloc[-2] - df['low'].iloc[-2]
+        candle_range = df['high'].iloc[-1] - df['low'].iloc[-1]
         min_range = current_atr * ATR_MULTIPLIER
         
         return candle_range >= min_range
@@ -869,10 +855,12 @@ class MT5TradingBot:
                         # En cas d'erreur, utiliser les données en cache
                         self.log(f"   ⚠️  Erreur rechargement H1 pour {symbol}, utilisation du cache: {e}")
             
-            # Filtrer les données jusqu'au moment actuel
-            h1_data_until_now = df_h1[df_h1.index <= current_time]
+            # Aligné backtest : données H1 jusqu'à current_time inclus (même logique que backtest)
+            ts = pd.Timestamp(current_time)
+            if hasattr(df_h1.index, 'tz') and df_h1.index.tz is not None and getattr(ts, 'tzinfo', None) is None:
+                ts = ts.tz_localize(df_h1.index.tz)
+            h1_data_until_now = df_h1[df_h1.index <= ts]
             
-            # Besoin d'au moins 3 bougies H1 pour analyser la tendance
             if len(h1_data_until_now) < 3:
                 return None
             
@@ -965,13 +953,11 @@ class MT5TradingBot:
         return True
     
     def check_momentum_filter(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Vérifie le momentum avant l'entrée (améliore le WR)"""
+        """Vérifie le momentum avant l'entrée. Aligné backtest : iloc[-1]/[-2]."""
         if not USE_MOMENTUM_FILTER or len(df) < 3:
             return True
-        
-        # Après sort_index: iloc[-2]=dernière barre fermée, iloc[-3]=avant-dernière
-        current = df.iloc[-2]
-        prev = df.iloc[-3]
+        current = df.iloc[-1]
+        prev = df.iloc[-2]
         
         if trade_type == TradeType.LONG:
             # Pour LONG: vérifier que le prix monte avec force
@@ -983,12 +969,10 @@ class MT5TradingBot:
             return price_momentum < 0  # Prix en baisse
     
     def check_distance_from_ema200(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Évite les entrées trop loin de la SMA 50 (améliore WR)"""
-        if not USE_DISTANCE_FILTER or len(df) < 2:
+        """Évite les entrées trop loin de la SMA 50. Aligné backtest : len < 1, iloc[-1]."""
+        if not USE_DISTANCE_FILTER or len(df) < 1:
             return True
-        
-        # Après sort_index: iloc[-2]=dernière barre fermée
-        current = df.iloc[-2]
+        current = df.iloc[-1]
         price = current['close']
         sma50 = current[f'SMA_{SMA_SLOW}']
         
@@ -1000,12 +984,10 @@ class MT5TradingBot:
         return distance_pct <= MAX_DISTANCE_FROM_EMA200
     
     def check_ema_spread(self, df: pd.DataFrame) -> bool:
-        """Évite les spreads trop larges entre EMA20 et SMA50 (améliore WR)"""
-        if not USE_EMA_SPREAD_FILTER or len(df) < 2:
+        """Évite les spreads trop larges entre EMA20 et SMA50. Aligné backtest : len < 1, iloc[-1]."""
+        if not USE_EMA_SPREAD_FILTER or len(df) < 1:
             return True
-        
-        # Après sort_index: iloc[-2]=dernière barre fermée
-        current = df.iloc[-2]
+        current = df.iloc[-1]
         ema20 = current[f'EMA_{EMA_FAST}']
         sma50 = current[f'SMA_{SMA_SLOW}']
         
@@ -1017,31 +999,25 @@ class MT5TradingBot:
         return spread_pct <= MAX_EMA_SPREAD
     
     def check_confirmation_filter(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Confirmation sur plusieurs bougies (améliore WR)"""
-        if not USE_CONFIRMATION_FILTER or len(df) < 2 + CONFIRMATION_BARS:
+        """Confirmation sur plusieurs bougies. Aligné backtest : LONG last > first, SHORT last < first."""
+        if not USE_CONFIRMATION_FILTER or len(df) < CONFIRMATION_BARS + 1:
             return True
-        
-        # Après sort_index: iloc[-2]=dernière barre fermée, iloc[-2-CONFIRMATION_BARS:-1]=dernières CONFIRMATION_BARS+1 barres
-        recent_closes = df['close'].iloc[-2 - CONFIRMATION_BARS:-1]
+        recent_closes = df['close'].iloc[-(CONFIRMATION_BARS + 1):]
         if trade_type == TradeType.LONG:
-            # Pour LONG: vérifier que les dernières bougies sont haussières (dernière fermée > plus ancienne du lot)
-            return recent_closes.iloc[0] > recent_closes.iloc[-1]
+            # Pour LONG: haussier = dernière > première
+            return recent_closes.iloc[-1] > recent_closes.iloc[0]
         else:  # SHORT
-            # Pour SHORT: vérifier que les dernières bougies sont baissières
-            return recent_closes.iloc[0] < recent_closes.iloc[-1]
+            # Pour SHORT: baissier = dernière < première
+            return recent_closes.iloc[-1] < recent_closes.iloc[0]
     
     def check_volatility_filter(self, df: pd.DataFrame) -> bool:
-        """Évite les entrées dans volatilité excessive (améliore WR)"""
-        if not USE_VOLATILITY_FILTER or 'ATR' not in df.columns or len(df) < 2 + ATR_LOOKBACK:
+        """Évite les entrées dans volatilité excessive. Aligné backtest : len < ATR_LOOKBACK + 1."""
+        if not USE_VOLATILITY_FILTER or 'ATR' not in df.columns or len(df) < ATR_LOOKBACK + 1:
             return True
-        
-        # Après sort_index: iloc[-2]=dernière barre fermée
-        current_atr = df['ATR'].iloc[-2]
+        current_atr = df['ATR'].iloc[-1]
         if pd.isna(current_atr) or current_atr <= 0:
             return True
-        
-        # Calculer moyenne ATR
-        atr_values = df['ATR'].iloc[-2 - ATR_LOOKBACK:-2]
+        atr_values = df['ATR'].iloc[-1 - ATR_LOOKBACK:-1]
         atr_avg = atr_values.mean()
         
         if atr_avg <= 0:
@@ -1051,21 +1027,17 @@ class MT5TradingBot:
         return current_atr <= (atr_avg * MAX_VOLATILITY_MULTIPLIER)
     
     def find_last_low(self, symbol: str, df: pd.DataFrame, lookback: int = 10) -> float:
-        """Calcule le SL pour LONG (basé sur ATR ou dernier swing valide) - IDENTIQUE AU BACKTEST"""
-        # Après sort_index: iloc[-2]=dernière barre fermée
-        current_price = df['close'].iloc[-2]
+        """Calcule le SL pour LONG (ATR ou dernier swing). Aligné backtest : lookback = len(df) si len < lookback."""
+        current_price = df['close'].iloc[-1]
         
-        # PRIORITÉ: Utiliser ATR pour SL intelligent (comme en backtest)
-        if USE_ATR_SL and 'ATR' in df.columns and len(df) >= 2:
-            current_atr = df['ATR'].iloc[-2]
+        if USE_ATR_SL and 'ATR' in df.columns and len(df) > 0:
+            current_atr = df['ATR'].iloc[-1]
             if not pd.isna(current_atr) and current_atr > 0:
-                # SL basé sur ATR (plus adapté à la volatilité)
                 return current_price - (current_atr * ATR_SL_MULTIPLIER)
         
-        # Fallback: Dernier swing bas valide (dernières lookback barres fermées)
-        if len(df) < 1 + lookback:
-            lookback = max(1, len(df) - 1)
-        lows = df['low'].iloc[-1 - lookback:-1]
+        if len(df) < lookback:
+            lookback = len(df)
+        lows = df['low'].iloc[-lookback:]
         min_low = lows.min()
         
         symbol_info = mt5.symbol_info(symbol)
@@ -1077,21 +1049,17 @@ class MT5TradingBot:
         return min_low * 0.999
     
     def find_last_high(self, symbol: str, df: pd.DataFrame, lookback: int = 10) -> float:
-        """Calcule le SL pour SHORT (basé sur ATR ou dernier swing valide) - IDENTIQUE AU BACKTEST"""
-        # Après sort_index: iloc[-2]=dernière barre fermée
-        current_price = df['close'].iloc[-2]
+        """Calcule le SL pour SHORT (ATR ou dernier swing). Aligné backtest : lookback = len(df) si len < lookback."""
+        current_price = df['close'].iloc[-1]
         
-        # PRIORITÉ: Utiliser ATR pour SL intelligent (comme en backtest)
-        if USE_ATR_SL and 'ATR' in df.columns and len(df) >= 2:
-            current_atr = df['ATR'].iloc[-2]
+        if USE_ATR_SL and 'ATR' in df.columns and len(df) > 0:
+            current_atr = df['ATR'].iloc[-1]
             if not pd.isna(current_atr) and current_atr > 0:
-                # SL basé sur ATR (plus adapté à la volatilité)
                 return current_price + (current_atr * ATR_SL_MULTIPLIER)
         
-        # Fallback: Dernier swing haut valide (dernières lookback barres fermées)
-        if len(df) < 1 + lookback:
-            lookback = max(1, len(df) - 1)
-        highs = df['high'].iloc[-1 - lookback:-1]
+        if len(df) < lookback:
+            lookback = len(df)
+        highs = df['high'].iloc[-lookback:]
         max_high = highs.max()
         
         symbol_info = mt5.symbol_info(symbol)
@@ -1104,49 +1072,34 @@ class MT5TradingBot:
     
     def check_long_entry(self, df: pd.DataFrame, symbol: str = "") -> bool:
         """
-        Vérifie les conditions d'entrée LONG sur M5
-        
-        STRATÉGIE CROISEMENT:
-        1. H1 détermine la tendance principale (haussière/baissière)
-        2. M5 prend les trades seulement si alignés avec la tendance H1
-        3. Condition M5: EMA 20 croise au-dessus de SMA 50
-        
-        Retourne True si toutes les conditions sont remplies (H1 + M5)
+        Vérifie les conditions d'entrée LONG sur M5.
+        Même logique que le backtest : df ne contient que des barres fermées, donc iloc[-1]=dernière fermée.
         """
         if len(df) < 5:
             return False
         
-        # Récupérer le temps de la dernière barre fermée (après sort_index: index[-2])
-        current_time = df.index[-2]
-        # Convertir en datetime si c'est un Timestamp pandas
+        current_time = df.index[-1]
         if hasattr(current_time, 'to_pydatetime'):
             current_time = current_time.to_pydatetime()
         
-        # FILTRE SESSION: Vérifier qu'on est dans une session de trading valide (ASIA, EUROPE, US)
         if not self.is_valid_trading_session(current_time):
-            return False  # Session OFF_HOURS -> pas de trade
+            return False
         
-        # FILTRE 0: Tendance H1 (PRIORITÉ ABSOLUE)
-        # Analyse les 3 dernières bougies H1 pour déterminer la tendance
         if USE_H1_TREND_FILTER and symbol:
             h1_trend_ok = self.check_h1_trend(symbol, current_time, TradeType.LONG)
             if not h1_trend_ok:
-                # Le log d'erreur est déjà fait dans check_h1_trend()
-                # Ici on ajoute juste un log de confirmation que le trade est bloqué
-                return False  # Tendance H1 non haussière ou données H1 indisponibles -> pas de LONG M5
+                return False
         
-        # Après sort_index: iloc[-2]=dernière barre fermée, iloc[-3]=avant-dernière
-        current = df.iloc[-2]
-        prev = df.iloc[-3]
+        # iloc[-1]=dernière barre fermée, iloc[-2]=avant-dernière (aligné backtest)
+        current = df.iloc[-1]
+        prev = df.iloc[-2]
         
         ema20_current = current[f'EMA_{EMA_FAST}']
         sma50_current = current[f'SMA_{SMA_SLOW}']
         ema20_prev = prev[f'EMA_{EMA_FAST}']
         sma50_prev = prev[f'SMA_{SMA_SLOW}']
         
-        # Ne pas signaler si indicateurs invalides (NaN)
-        if pd.isna(ema20_current) or pd.isna(sma50_current) or pd.isna(ema20_prev) or pd.isna(sma50_prev):
-            return False
+        # Aligné backtest : pas de vérification NaN sur les indicateurs d'entrée
         
         # Condition M5: EMA 20 doit croiser au-dessus de SMA 50
         # EMA 20 était en dessous de SMA 50 à la bougie précédente
@@ -1161,49 +1114,32 @@ class MT5TradingBot:
     
     def check_short_entry(self, df: pd.DataFrame, symbol: str = "") -> bool:
         """
-        Vérifie les conditions d'entrée SHORT sur M5
-        
-        STRATÉGIE CROISEMENT:
-        1. H1 détermine la tendance principale (haussière/baissière)
-        2. M5 prend les trades seulement si alignés avec la tendance H1
-        3. Condition M5: EMA 20 croise en-dessous de SMA 50
-        
-        Retourne True si toutes les conditions sont remplies (H1 + M5)
+        Vérifie les conditions d'entrée SHORT sur M5 (même logique que backtest : iloc[-1]/[-2]).
         """
         if len(df) < 5:
             return False
         
-        # Récupérer le temps de la dernière barre fermée (après sort_index: index[-2])
-        current_time = df.index[-2]
-        # Convertir en datetime si c'est un Timestamp pandas
+        current_time = df.index[-1]
         if hasattr(current_time, 'to_pydatetime'):
             current_time = current_time.to_pydatetime()
         
-        # FILTRE SESSION: Vérifier qu'on est dans une session de trading valide (ASIA, EUROPE, US)
         if not self.is_valid_trading_session(current_time):
-            return False  # Session OFF_HOURS -> pas de trade
+            return False
         
-        # FILTRE 0: Tendance H1 (PRIORITÉ ABSOLUE)
-        # Analyse les 3 dernières bougies H1 pour déterminer la tendance
         if USE_H1_TREND_FILTER and symbol:
             h1_trend_ok = self.check_h1_trend(symbol, current_time, TradeType.SHORT)
             if not h1_trend_ok:
-                # Le log d'erreur est déjà fait dans check_h1_trend()
-                # Ici on ajoute juste un log de confirmation que le trade est bloqué
-                return False  # Tendance H1 non baissière ou données H1 indisponibles -> pas de SHORT M5
+                return False
         
-        # Après sort_index: iloc[-2]=dernière barre fermée, iloc[-3]=avant-dernière
-        current = df.iloc[-2]
-        prev = df.iloc[-3]
+        current = df.iloc[-1]
+        prev = df.iloc[-2]
         
         ema20_current = current[f'EMA_{EMA_FAST}']
         sma50_current = current[f'SMA_{SMA_SLOW}']
         ema20_prev = prev[f'EMA_{EMA_FAST}']
         sma50_prev = prev[f'SMA_{SMA_SLOW}']
         
-        # Ne pas signaler si indicateurs invalides (NaN)
-        if pd.isna(ema20_current) or pd.isna(sma50_current) or pd.isna(ema20_prev) or pd.isna(sma50_prev):
-            return False
+        # Aligné backtest : pas de vérification NaN sur les indicateurs d'entrée
         
         # Condition M5: EMA 20 doit croiser en-dessous de SMA 50
         # EMA 20 était au-dessus de SMA 50 à la bougie précédente
@@ -1338,8 +1274,7 @@ class MT5TradingBot:
         return sum(1 for pos in positions if pos.magic == MAGIC_NUMBER)
     
     def get_daily_loss(self) -> float:
-        """Calcule la perte quotidienne basée sur l'equity actuelle vs equity de début de journée (FTMO standard)"""
-        # Vérifier la connexion
+        """Calcule la perte quotidienne sur la BALANCE (aligné backtest : uniquement trades fermés, pas le PnL flottant)."""
         if not self.check_connection():
             return 0.0
         
@@ -1347,37 +1282,32 @@ class MT5TradingBot:
         if not account_info:
             return 0.0
         
-        # Si c'est un nouveau jour, réinitialiser l'equity de début
         current_date = datetime.now().date()
+        current_balance = account_info.balance
         was_new_day = False
+        
         if self.last_trading_date is None or current_date > self.last_trading_date:
-            # Nouveau jour détecté
-            was_new_day = self.last_trading_date is not None  # True si ce n'est pas le premier appel
+            was_new_day = self.last_trading_date is not None
+            self.daily_start_balance = current_balance
             self.daily_start_equity = account_info.equity
             self.trading_stopped_daily = False
             self.last_trading_date = current_date
             if was_new_day:
                 self.log(f"🔄 Nouveau jour détecté - Réinitialisation du suivi quotidien")
-                self.log(f"   Nouvelle equity de début: {self.daily_start_equity:.2f} {account_info.currency}")
-        elif self.daily_start_equity is None:
-            # Première initialisation
+                self.log(f"   Balance de début: {self.daily_start_balance:.2f} {account_info.currency}")
+        elif self.daily_start_balance is None:
+            self.daily_start_balance = current_balance
             self.daily_start_equity = account_info.equity
             self.trading_stopped_daily = False
             self.last_trading_date = current_date
         
-        # Calculer la perte quotidienne basée sur l'equity (FTMO standard)
-        current_equity = account_info.equity
-        
-        # Vérifier que daily_start_equity est initialisé
-        if self.daily_start_equity is None:
-            # Initialisation d'urgence si pas encore fait
-            self.daily_start_equity = current_equity
+        if self.daily_start_balance is None:
+            self.daily_start_balance = current_balance
             self.trading_stopped_daily = False
             self.last_trading_date = current_date
-            self.log(f"⚠️  Initialisation d'urgence de l'equity de début: {self.daily_start_equity:.2f} {account_info.currency}")
+            self.log(f"⚠️  Initialisation d'urgence balance de début: {self.daily_start_balance:.2f} {account_info.currency}")
         
-        daily_loss = current_equity - self.daily_start_equity
-        
+        daily_loss = current_balance - self.daily_start_balance
         return daily_loss
     
     def can_trade_today(self) -> Tuple[bool, str]:
@@ -1487,12 +1417,12 @@ class MT5TradingBot:
             self.log(f"❌ Impossible de récupérer le tick pour {symbol}")
             return None
         
-        # Prix d'entrée réel (ASK pour LONG) - utilisé pour calculer SL/TP mais pas dans la requête
-        entry_price = tick.ask
-        # Pour un ordre market, on utilise 0 (prix actuel du marché) ou le prix actuel
-        market_price = 0.0  # 0 = prix actuel du marché pour ordre market
+        # Alignement backtest : prix de référence = clôture de la dernière barre fermée (comme en backtest)
+        # SL/TP/lot calculés à partir de ce prix pour que les conditions soient identiques au backtest.
+        # L'ordre est envoyé au marché (tick.ask) pour l'exécution.
+        entry_price = float(df['close'].iloc[-1])
         
-        # Calculer stop-loss basé sur les données historiques
+        # Calculer stop-loss basé sur les données historiques (même logique que backtest)
         stop_loss = self.find_last_low(symbol, df, 10)
         
         if stop_loss <= 0 or stop_loss >= entry_price:
@@ -1666,8 +1596,9 @@ class MT5TradingBot:
         self.open_trades[symbol].append(trade)
         self.trade_history.append(trade)
         
-        # Enregistrer cette position pour éviter le sur-trading (après sort_index: index[-2])
-        current_bar_time = df.index[-2].to_pydatetime()
+        current_bar_time = df.index[-1]
+        if hasattr(current_bar_time, 'to_pydatetime'):
+            current_bar_time = current_bar_time.to_pydatetime()
         self.record_trade(symbol, TradeType.LONG, current_bar_time)
         
         return trade
@@ -1712,12 +1643,12 @@ class MT5TradingBot:
             print(f"❌ Impossible de récupérer le tick pour {symbol}")
             return None
         
-        # Prix d'entrée réel (BID pour SHORT) - utilisé pour calculer SL/TP mais pas dans la requête
-        entry_price = tick.bid
-        # Pour un ordre market, on utilise 0 (prix actuel du marché) ou le prix actuel
-        market_price = 0.0  # 0 = prix actuel du marché pour ordre market
+        # Alignement backtest : prix de référence = clôture de la dernière barre fermée (comme en backtest)
+        # SL/TP/lot calculés à partir de ce prix pour que les conditions soient identiques au backtest.
+        # L'ordre est envoyé au marché (tick.bid) pour l'exécution.
+        entry_price = float(df['close'].iloc[-1])
         
-        # Calculer stop-loss basé sur les données historiques
+        # Calculer stop-loss basé sur les données historiques (même logique que backtest)
         stop_loss = self.find_last_high(symbol, df, 10)
         
         if stop_loss <= 0 or stop_loss <= entry_price:
@@ -1892,8 +1823,9 @@ class MT5TradingBot:
         self.open_trades[symbol].append(trade)
         self.trade_history.append(trade)
         
-        # Enregistrer cette position pour éviter le sur-trading (après sort_index: index[-2])
-        current_bar_time = df.index[-2].to_pydatetime()
+        current_bar_time = df.index[-1]
+        if hasattr(current_bar_time, 'to_pydatetime'):
+            current_bar_time = current_bar_time.to_pydatetime()
         self.record_trade(symbol, TradeType.SHORT, current_bar_time)
         
         return trade
@@ -1913,7 +1845,7 @@ class MT5TradingBot:
         daily_loss = self.get_daily_loss()
         account_info = mt5.account_info()
         currency = account_info.currency if account_info else "USD"
-        loss_pct = (daily_loss / self.daily_start_equity * 100) if self.daily_start_equity and self.daily_start_equity > 0 else 0
+        loss_pct = (daily_loss / self.daily_start_balance * 100) if self.daily_start_balance and self.daily_start_balance > 0 else 0
         self.log(f"   📊 Perte quotidienne: {daily_loss:.2f} {currency} ({loss_pct:.2f}%) | Limite: {self.max_daily_loss:.2f} {currency}")
         
         # Récupérer les données depuis MT5
@@ -1922,16 +1854,21 @@ class MT5TradingBot:
             self.log(f"   ⚠️  Données insuffisantes pour {symbol}")
             return
         
-        # Après sort_index: iloc[-2]=dernière barre fermée (indicateurs valides)
-        current = df.iloc[-2]
+        # Alignement backtest : on travaille uniquement sur les barres FERMÉES (sans la barre en cours)
+        # Ainsi iloc[-1] = dernière barre fermée, comme en backtest (meilleur win rate).
+        if len(df) > 1:
+            df = df.iloc[:-1]
+        
+        # iloc[-1] = dernière barre fermée (indicateurs valides)
+        current = df.iloc[-1]
         price = current['close']
         ema20 = current[f'EMA_{EMA_FAST}']
         sma50 = current[f'SMA_{SMA_SLOW}']
         
         self.log(f"   💹 Prix: {price:.2f} | EMA{EMA_FAST}: {ema20:.2f} | SMA{SMA_SLOW}: {sma50:.2f}")
         
-        # Vérifier si nouvelle bougie (timeframe 5min) — index[-2]=dernière barre fermée
-        current_time = df.index[-2]
+        # Nouvelle bougie = index[-1] (dernière barre fermée)
+        current_time = df.index[-1]
         # Convertir en datetime si c'est un Timestamp pandas
         if hasattr(current_time, 'to_pydatetime'):
             current_time = current_time.to_pydatetime()
@@ -2077,12 +2014,10 @@ class MT5TradingBot:
         long_signal = self.check_long_entry(df, symbol)
         short_signal = self.check_short_entry(df, symbol)
         
-        # Log détaillé pour diagnostic
+        # Log détaillé pour diagnostic (df = barres fermées uniquement → iloc[-1]/[-2])
         if not long_signal and not short_signal:
-            # Aucun signal - afficher la raison (croisement M5 vs filtre H1)
-            # Après sort_index: iloc[-2]=dernière barre fermée, iloc[-3]=avant-dernière
-            current = df.iloc[-2]
-            prev = df.iloc[-3]
+            current = df.iloc[-1]
+            prev = df.iloc[-2]
             ema20_curr = current[f'EMA_{EMA_FAST}']
             sma50_curr = current[f'SMA_{SMA_SLOW}']
             ema20_prev = prev[f'EMA_{EMA_FAST}']
@@ -2196,7 +2131,7 @@ class MT5TradingBot:
             
             # Calculer la perte quotidienne
             daily_loss = self.get_daily_loss()
-            loss_pct = (daily_loss / self.daily_start_equity * 100) if self.daily_start_equity and self.daily_start_equity > 0 else 0
+            loss_pct = (daily_loss / self.daily_start_balance * 100) if self.daily_start_balance and self.daily_start_balance > 0 else 0
             
             self.log(f"\n💰 Compte:")
             self.log(f"   Balance: {account_info.balance:.2f} {account_info.currency}")
