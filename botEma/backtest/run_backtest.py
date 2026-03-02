@@ -53,6 +53,8 @@ def load_config():
             'preferred_symbol_by_day': getattr(config, 'PREFERRED_SYMBOL_BY_DAY', None),
             'months_back': getattr(config, 'MONTHS_BACK', None),
             'use_daily_loss_in_backtest': getattr(config, 'USE_DAILY_LOSS_IN_BACKTEST', False),
+            # Prix d'entrée backtest : True = open de la barre suivante (plus réaliste, proche du fill réel ask/bid)
+            'use_next_bar_open_for_entry': getattr(config, 'USE_NEXT_BAR_OPEN_FOR_ENTRY', True),
         }
     except ImportError:
         print("ERREUR: Fichier config.py non trouve dans le dossier backtest")
@@ -1101,6 +1103,7 @@ def run_backtest_engine(bot, config, symbol_stats):
     use_daily_preferred = config.get('use_daily_preferred_symbol', True)
     one_symbol_at_a_time = config.get('one_symbol_at_a_time', True)
     preferred_by_day = config.get('preferred_symbol_by_day') or {}
+    use_next_bar_open_for_entry = config.get('use_next_bar_open_for_entry', True)
 
     events = []
     for sym in bot.symbols:
@@ -1272,7 +1275,11 @@ def run_backtest_engine(bot, config, symbol_stats):
             if long_signal:
                 symbol_stats[symbol]['signals_detected'] = symbol_stats[symbol].get('signals_detected', 0) + 1
                 if not False:
-                    entry_price = current_bar['close']
+                    # Prix d'entrée : open barre suivante (réaliste, proche du fill réel) ou close barre courante
+                    if use_next_bar_open_for_entry and bar_index + 1 < len(df):
+                        entry_price = float(df.iloc[bar_index + 1]['open'])
+                    else:
+                        entry_price = current_bar['close']
                     stop_loss = bot.find_last_low(symbol, market_data, 10)
                     stop_distance = entry_price - stop_loss
                     sl_distance_pct = abs(entry_price - stop_loss) / entry_price if entry_price > 0 else 0
@@ -1316,7 +1323,11 @@ def run_backtest_engine(bot, config, symbol_stats):
             if short_signal:
                 symbol_stats[symbol]['signals_detected'] = symbol_stats[symbol].get('signals_detected', 0) + 1
                 if not False:
-                    entry_price = current_bar['close']
+                    # Prix d'entrée : open barre suivante (réaliste) ou close barre courante
+                    if use_next_bar_open_for_entry and bar_index + 1 < len(df):
+                        entry_price = float(df.iloc[bar_index + 1]['open'])
+                    else:
+                        entry_price = current_bar['close']
                     stop_loss = bot.find_last_high(symbol, market_data, 10)
                     stop_distance = stop_loss - entry_price
                     sl_distance_pct = abs(stop_loss - entry_price) / entry_price if entry_price > 0 else 0

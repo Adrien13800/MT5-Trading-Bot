@@ -81,6 +81,8 @@ USE_H1_TREND_FILTER = True  # ACTIVÉ - Tendance déterminée par les 3 dernièr
 # Stratégie "un actif par jour" (WR du jour) + un seul actif à la fois
 USE_DAILY_PREFERRED_SYMBOL = True   # Trader uniquement l'actif avec le meilleur WR ce jour-là
 ONE_SYMBOL_AT_A_TIME = True        # Ne jamais avoir 2 actifs en position simultanément
+# Parité backtest: prix d'entrée de référence = open de la bougie suivante
+USE_NEXT_BAR_OPEN_FOR_ENTRY = True
 
 # Symboles MT5 (à adapter selon votre broker)
 SYMBOLS_MT5 = {
@@ -237,8 +239,14 @@ class MT5TradingBot:
         self.log("🤖 EMA TRADING BOT MT5 - Initialisation")
         self.log("=" * 70)
         
-        # Initialiser MT5 avec le chemin spécifique
+        # Initialiser MT5 avec le chemin spécifique (configurable pour serveur)
         mt5_path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
+        try:
+            import config as _cfg
+            if getattr(_cfg, "MT5_TERMINAL_PATH", None):
+                mt5_path = _cfg.MT5_TERMINAL_PATH
+        except ImportError:
+            pass
         if not mt5.initialize(path=mt5_path):
             error = mt5.last_error()
             self.log(f"❌ Erreur initialisation MT5: {error}")
@@ -321,11 +329,13 @@ class MT5TradingBot:
         # Charger l'actif préféré par jour depuis config.py (même logique que backtest)
         self.use_daily_preferred_symbol = USE_DAILY_PREFERRED_SYMBOL
         self.one_symbol_at_a_time = ONE_SYMBOL_AT_A_TIME
+        self.use_next_bar_open_for_entry = USE_NEXT_BAR_OPEN_FOR_ENTRY
         self.preferred_by_weekday: Dict[int, str] = {}
         try:
             import config as bot_config
             self.use_daily_preferred_symbol = getattr(bot_config, 'USE_DAILY_PREFERRED_SYMBOL', self.use_daily_preferred_symbol)
             self.one_symbol_at_a_time = getattr(bot_config, 'ONE_SYMBOL_AT_A_TIME', self.one_symbol_at_a_time)
+            self.use_next_bar_open_for_entry = getattr(bot_config, 'USE_NEXT_BAR_OPEN_FOR_ENTRY', self.use_next_bar_open_for_entry)
             pref = getattr(bot_config, 'PREFERRED_SYMBOL_BY_DAY', None)
             if pref:
                 self.preferred_by_weekday = {int(k): v for k, v in pref.items()}
@@ -1274,7 +1284,10 @@ class MT5TradingBot:
         return sum(1 for pos in positions if pos.magic == MAGIC_NUMBER)
     
     def get_daily_loss(self) -> float:
-        """Calcule la perte quotidienne sur la BALANCE (aligné backtest : uniquement trades fermés, pas le PnL flottant)."""
+        """
+        Calcule la perte quotidienne à partir des DEALS du jour (P&L réalisé des trades fermés uniquement).
+        N'inclut pas les dépôts/retraits, pour éviter de déclencher la protection à tort.
+        """
         if not self.check_connection():
             return 0.0
         
@@ -1286,6 +1299,7 @@ class MT5TradingBot:
         current_balance = account_info.balance
         was_new_day = False
         
+        # Mise à jour du suivi du jour (pour logs et affichage)
         if self.last_trading_date is None or current_date > self.last_trading_date:
             was_new_day = self.last_trading_date is not None
             self.daily_start_balance = current_balance
@@ -1307,15 +1321,29 @@ class MT5TradingBot:
             self.last_trading_date = current_date
             self.log(f"⚠️  Initialisation d'urgence balance de début: {self.daily_start_balance:.2f} {account_info.currency}")
         
-        daily_loss = current_balance - self.daily_start_balance
-        return daily_loss
+        # P&L quotidien = somme des deals du jour (trades fermés uniquement, pas dépôts/retraits)
+        date_from = datetime(current_date.year, current_date.month, current_date.day, 0, 0, 0)
+        date_to = datetime.now()
+        deals = mt5.history_deals_get(date_from, date_to)
+        daily_pnl = 0.0
+        if deals is not None:
+            for d in deals:
+                # Chaque deal: profit + commission + swap (P&L réalisé du trade)
+                daily_pnl += getattr(d, 'profit', 0.0) + getattr(d, 'commission', 0.0) + getattr(d, 'swap', 0.0)
+        else:
+            # Fallback si l'historique n'est pas dispo (broker/API) : utiliser balance (peut inclure dépôts/retraits)
+            daily_pnl = current_balance - self.daily_start_balance
+            if self.daily_start_balance is not None and abs(daily_pnl) > 500:
+                self.log(f"⚠️  Historique des deals indisponible, P&L basé sur la balance. Dépôts/retraits peuvent fausser la protection.")
+        
+        return daily_pnl
     
     def can_trade_today(self) -> Tuple[bool, str]:
         """
         Vérifie si on peut trader aujourd'hui (pas de limite de perte atteinte)
         
-        NOTE: La protection quotidienne est basée sur le solde global du compte.
-        Si la limite est atteinte, elle s'applique à TOUS les symboles.
+        NOTE: La protection est basée sur le P&L réalisé du jour (somme des deals), pas sur la
+        variation de balance (dépôts/retraits exclus). Si la limite est atteinte, elle s'applique à TOUS les symboles.
         Cependant, on vérifie la protection AVANT de traiter chaque symbole
         pour permettre à tous les symboles d'être évalués dans la même itération
         avant que la protection ne soit déclenchée.
@@ -1377,7 +1405,7 @@ class MT5TradingBot:
         key = (symbol, trade_type)
         self.last_trade_by_symbol_type[key] = trade_time
     
-    def open_long_position(self, symbol: str, df: pd.DataFrame) -> Optional[Trade]:
+    def open_long_position(self, symbol: str, df: pd.DataFrame, entry_price_bar_override: Optional[float] = None) -> Optional[Trade]:
         """Ouvre une position LONG réelle sur MT5"""
         if not ALLOW_LONG:
             return None
@@ -1417,26 +1445,42 @@ class MT5TradingBot:
             self.log(f"❌ Impossible de récupérer le tick pour {symbol}")
             return None
         
-        # Alignement backtest : prix de référence = clôture de la dernière barre fermée (comme en backtest)
-        # SL/TP/lot calculés à partir de ce prix pour que les conditions soient identiques au backtest.
-        # L'ordre est envoyé au marché (tick.ask) pour l'exécution.
-        entry_price = float(df['close'].iloc[-1])
+        # Parité backtest: prix de référence = open de la bougie suivante (ou close de la bougie signal en fallback)
+        if entry_price_bar_override is not None:
+            entry_price_bar = float(entry_price_bar_override)
+        else:
+            entry_price_bar = float(df['close'].iloc[-1])
+        if entry_price_bar <= 0 or (entry_price_bar != entry_price_bar):  # NaN check
+            self.log(f"❌ Prix d'entrée de référence invalide pour LONG {symbol}: {entry_price_bar}")
+            return None
+        ask = getattr(tick, 'ask', None)
+        if ask is None:
+            self.log(f"❌ Tick.ask indisponible pour LONG {symbol}")
+            return None
+        try:
+            execution_price = float(ask)
+        except (TypeError, ValueError):
+            self.log(f"❌ Tick.ask non convertible en float pour LONG {symbol}: {ask}")
+            return None
+        if execution_price <= 0 or (execution_price != execution_price):
+            self.log(f"❌ Prix exécution (ask) invalide pour LONG {symbol}: {execution_price}")
+            return None
         
         # Calculer stop-loss basé sur les données historiques (même logique que backtest)
         stop_loss = self.find_last_low(symbol, df, 10)
         
-        if stop_loss <= 0 or stop_loss >= entry_price:
+        if stop_loss <= 0 or stop_loss >= entry_price_bar:
             self.log_failed_trade_attempt(
                 symbol=symbol,
                 trade_type="LONG",
                 reason="Stop-loss invalide",
-                error_message=f"SL: {stop_loss:.2f}, Entry: {entry_price:.2f}"
+                error_message=f"SL: {stop_loss:.2f}, Entry bar: {entry_price_bar:.2f}"
             )
-            self.log(f"❌ Stop-loss invalide pour LONG {symbol} (SL: {stop_loss:.2f}, Entry: {entry_price:.2f})")
+            self.log(f"❌ Stop-loss invalide pour LONG {symbol} (SL: {stop_loss:.2f}, Entry: {entry_price_bar:.2f})")
             return None
         
-        # Validation stricte: vérifier que le SL est raisonnable (max 5% du prix d'entrée)
-        sl_distance_pct = abs(entry_price - stop_loss) / entry_price
+        # Validation stricte: vérifier que le SL est raisonnable (max 5% du prix d'entrée barre)
+        sl_distance_pct = abs(entry_price_bar - stop_loss) / entry_price_bar
         if sl_distance_pct > 0.05:  # 5% max
             self.log_failed_trade_attempt(
                 symbol=symbol,
@@ -1447,53 +1491,56 @@ class MT5TradingBot:
             self.log(f"❌ Stop-loss trop éloigné pour LONG {symbol} ({sl_distance_pct*100:.2f}% > 5%)")
             return None
         
-        # R:R adaptatif selon pente SMA 50
+        # SL doit rester sous le prix d'exécution (sinon ordre invalide)
+        if stop_loss >= execution_price:
+            self.log(f"❌ Stop-loss {stop_loss:.2f} >= prix exécution {execution_price:.2f} (marché a bougé), abandon LONG {symbol}")
+            return None
+        
+        # R:R adaptatif selon pente SMA 50 — PROD: tout basé sur le prix d'exécution pour que risque et gain en $ soient exacts
         rr_ratio = self.get_risk_reward_ratio(df)
-        stop_distance = entry_price - stop_loss
-        take_profit = entry_price + (stop_distance * rr_ratio)
+        sl_distance = execution_price - stop_loss  # distance réelle depuis le prix de fill
+        take_profit = execution_price + (sl_distance * rr_ratio)
         
         is_flat = self.is_ema200_flat(df)
         self.log(f"   📊 R:R utilisé: 1:{rr_ratio:.1f} ({'SMA50 plate' if is_flat else 'SMA50 penche'})")
+        self.log(f"   📍 Prix exécution (ask): {execution_price:.2f} | SL niveau: {stop_loss:.2f} | distance SL: {sl_distance:.2f}")
         
         # Normaliser les prix selon les digits du symbole (pour SL/TP uniquement)
-        digits = symbol_info.digits
+        digits = getattr(symbol_info, 'digits', 2)
+        if digits is None:
+            digits = 2
+        digits = int(digits)
         stop_loss = round(stop_loss, digits)
         take_profit = round(take_profit, digits)
         
         # Vérifier que les stops respectent la distance minimale requise par le broker
-        # Utiliser trade_stops_level (nom correct dans Python MT5)
-        stops_level = getattr(symbol_info, 'trade_stops_level', getattr(symbol_info, 'stops_level', 0))
-        point = symbol_info.point
-        
-        # Si stops_level est 0, utiliser une distance minimale raisonnable
-        # Pour les indices comme US30/US100, utiliser au moins 50 points (0.50)
+        stops_level = getattr(symbol_info, 'trade_stops_level', getattr(symbol_info, 'stops_level', 0)) or 0
+        point = getattr(symbol_info, 'point', None)
+        if point is None or point <= 0:
+            point = 0.01  # fallback pour indices
         if stops_level == 0:
-            min_distance = 50 * point  # Distance minimale de sécurité (50 points = 0.50)
+            min_distance = 50 * point
         else:
-            # Utiliser stops_level + marge de sécurité
             min_distance = max(stops_level, 50) * point
         
-        # Pour LONG: SL doit être au moins min_distance en dessous de entry_price
-        sl_distance = entry_price - stop_loss
+        # Pour LONG: SL au moins min_distance sous le prix d'exécution
         if sl_distance < min_distance:
-            # Ajuster le SL pour respecter la distance minimale
-            stop_loss = entry_price - min_distance
+            stop_loss = execution_price - min_distance
             stop_loss = round(stop_loss, digits)
-            # Recalculer le TP avec le nouveau SL
-            sl_distance = entry_price - stop_loss
-            take_profit = entry_price + (sl_distance * rr_ratio)
+            sl_distance = execution_price - stop_loss
+            take_profit = execution_price + (sl_distance * rr_ratio)
             take_profit = round(take_profit, digits)
             self.log(f"   ⚠️  SL ajusté pour respecter stops_level ({stops_level} points)")
         
-        # TP doit être au moins min_distance au-dessus de entry_price
-        tp_distance = take_profit - entry_price
+        # TP au moins min_distance au-dessus du prix d'exécution
+        tp_distance = take_profit - execution_price
         if tp_distance < min_distance:
-            take_profit = entry_price + min_distance
+            take_profit = execution_price + min_distance
             take_profit = round(take_profit, digits)
             self.log(f"   ⚠️  TP ajusté pour respecter stops_level ({stops_level} points)")
         
-        # Calculer lot size (utiliser entry_price non arrondi pour le calcul)
-        lot_size = self.calculate_lot_size(symbol, entry_price, stop_loss)
+        # Lot basé sur le prix d'exécution réel pour que perte au SL = exactement risk% du capital
+        lot_size = self.calculate_lot_size(symbol, execution_price, stop_loss)
         
         if lot_size <= 0:
             self.log_failed_trade_attempt(
@@ -1579,10 +1626,16 @@ class MT5TradingBot:
             ticket=position_ticket
         )
         
+        # Profit attendu au TP (même logique que risque au SL × R:R)
+        account_info = mt5.account_info()
+        if account_info:
+            risk_amount = account_info.balance * (self.risk_percent / 100.0)
+            expected_tp_profit = risk_amount * rr_ratio
+            self.log(f"   📈 Profit attendu au TP (1%×R:R): ~{expected_tp_profit:.2f} {account_info.currency}")
         self.log(f"\n✅ LONG ouvert: {symbol}")
         self.log(f"   Ticket: {position_ticket}")
         self.log(f"   Entry: {result.price:.2f}")
-        self.log(f"   SL: {stop_loss:.2f} (distance: {stop_distance:.2f})")
+        self.log(f"   SL: {stop_loss:.2f} (distance: {sl_distance:.2f})")
         self.log(f"   TP: {take_profit:.2f} (distance: {take_profit - result.price:.2f})")
         self.log(f"   Lot: {lot_size}")
         self.log(f"   R:R = 1:{rr_ratio:.1f}")
@@ -1603,7 +1656,7 @@ class MT5TradingBot:
         
         return trade
     
-    def open_short_position(self, symbol: str, df: pd.DataFrame) -> Optional[Trade]:
+    def open_short_position(self, symbol: str, df: pd.DataFrame, entry_price_bar_override: Optional[float] = None) -> Optional[Trade]:
         """Ouvre une position SHORT réelle sur MT5"""
         if not ALLOW_SHORT:
             return None
@@ -1643,26 +1696,42 @@ class MT5TradingBot:
             print(f"❌ Impossible de récupérer le tick pour {symbol}")
             return None
         
-        # Alignement backtest : prix de référence = clôture de la dernière barre fermée (comme en backtest)
-        # SL/TP/lot calculés à partir de ce prix pour que les conditions soient identiques au backtest.
-        # L'ordre est envoyé au marché (tick.bid) pour l'exécution.
-        entry_price = float(df['close'].iloc[-1])
+        # Parité backtest: prix de référence = open de la bougie suivante (ou close de la bougie signal en fallback)
+        if entry_price_bar_override is not None:
+            entry_price_bar = float(entry_price_bar_override)
+        else:
+            entry_price_bar = float(df['close'].iloc[-1])
+        if entry_price_bar <= 0 or (entry_price_bar != entry_price_bar):
+            self.log(f"❌ Prix d'entrée de référence invalide pour SHORT {symbol}: {entry_price_bar}")
+            return None
+        bid = getattr(tick, 'bid', None)
+        if bid is None:
+            self.log(f"❌ Tick.bid indisponible pour SHORT {symbol}")
+            return None
+        try:
+            execution_price = float(bid)
+        except (TypeError, ValueError):
+            self.log(f"❌ Tick.bid non convertible en float pour SHORT {symbol}: {bid}")
+            return None
+        if execution_price <= 0 or (execution_price != execution_price):
+            self.log(f"❌ Prix exécution (bid) invalide pour SHORT {symbol}: {execution_price}")
+            return None
         
         # Calculer stop-loss basé sur les données historiques (même logique que backtest)
         stop_loss = self.find_last_high(symbol, df, 10)
         
-        if stop_loss <= 0 or stop_loss <= entry_price:
+        if stop_loss <= 0 or stop_loss <= entry_price_bar:
             self.log_failed_trade_attempt(
                 symbol=symbol,
                 trade_type="SHORT",
                 reason="Stop-loss invalide",
-                error_message=f"SL: {stop_loss:.2f}, Entry: {entry_price:.2f}"
+                error_message=f"SL: {stop_loss:.2f}, Entry bar: {entry_price_bar:.2f}"
             )
-            self.log(f"❌ Stop-loss invalide pour SHORT {symbol} (SL: {stop_loss:.2f}, Entry: {entry_price:.2f})")
+            self.log(f"❌ Stop-loss invalide pour SHORT {symbol} (SL: {stop_loss:.2f}, Entry: {entry_price_bar:.2f})")
             return None
         
-        # Validation stricte: vérifier que le SL est raisonnable (max 5% du prix d'entrée)
-        sl_distance_pct = abs(stop_loss - entry_price) / entry_price
+        # Validation stricte: vérifier que le SL est raisonnable (max 5% du prix d'entrée barre)
+        sl_distance_pct = abs(stop_loss - entry_price_bar) / entry_price_bar
         if sl_distance_pct > 0.05:  # 5% max
             self.log_failed_trade_attempt(
                 symbol=symbol,
@@ -1673,53 +1742,56 @@ class MT5TradingBot:
             self.log(f"❌ Stop-loss trop éloigné pour SHORT {symbol} ({sl_distance_pct*100:.2f}% > 5%)")
             return None
         
-        # R:R adaptatif selon pente SMA 50
+        # SL doit rester au-dessus du prix d'exécution (sinon ordre invalide)
+        if stop_loss <= execution_price:
+            self.log(f"❌ Stop-loss {stop_loss:.2f} <= prix exécution {execution_price:.2f} (marché a bougé), abandon SHORT {symbol}")
+            return None
+        
+        # R:R adaptatif — PROD: tout basé sur le prix d'exécution pour que risque et gain en $ soient exacts
         rr_ratio = self.get_risk_reward_ratio(df)
-        stop_distance = stop_loss - entry_price
-        take_profit = entry_price - (stop_distance * rr_ratio)
+        sl_distance = stop_loss - execution_price  # distance réelle depuis le prix de fill
+        take_profit = execution_price - (sl_distance * rr_ratio)
         
         is_flat = self.is_ema200_flat(df)
         self.log(f"   📊 R:R utilisé: 1:{rr_ratio:.1f} ({'SMA50 plate' if is_flat else 'SMA50 penche'})")
+        self.log(f"   📍 Prix exécution (bid): {execution_price:.2f} | SL niveau: {stop_loss:.2f} | distance SL: {sl_distance:.2f}")
         
         # Normaliser les prix selon les digits du symbole (pour SL/TP uniquement)
-        digits = symbol_info.digits
+        digits = getattr(symbol_info, 'digits', 2)
+        if digits is None:
+            digits = 2
+        digits = int(digits)
         stop_loss = round(stop_loss, digits)
         take_profit = round(take_profit, digits)
         
         # Vérifier que les stops respectent la distance minimale requise par le broker
-        # Utiliser trade_stops_level (nom correct dans Python MT5)
-        stops_level = getattr(symbol_info, 'trade_stops_level', getattr(symbol_info, 'stops_level', 0))
-        point = symbol_info.point
-        
-        # Si stops_level est 0, utiliser une distance minimale raisonnable
-        # Pour les indices comme US30/US100, utiliser au moins 50 points (0.50)
+        stops_level = getattr(symbol_info, 'trade_stops_level', getattr(symbol_info, 'stops_level', 0)) or 0
+        point = getattr(symbol_info, 'point', None)
+        if point is None or point <= 0:
+            point = 0.01  # fallback pour indices
         if stops_level == 0:
-            min_distance = 50 * point  # Distance minimale de sécurité (50 points = 0.50)
+            min_distance = 50 * point
         else:
-            # Utiliser stops_level + marge de sécurité
             min_distance = max(stops_level, 50) * point
         
-        # Pour SHORT: SL doit être au moins min_distance au-dessus de entry_price
-        sl_distance = stop_loss - entry_price
+        # Pour SHORT: SL au moins min_distance au-dessus du prix d'exécution
         if sl_distance < min_distance:
-            # Ajuster le SL pour respecter la distance minimale
-            stop_loss = entry_price + min_distance
+            stop_loss = execution_price + min_distance
             stop_loss = round(stop_loss, digits)
-            # Recalculer le TP avec le nouveau SL
-            sl_distance = stop_loss - entry_price
-            take_profit = entry_price - (sl_distance * rr_ratio)
+            sl_distance = stop_loss - execution_price
+            take_profit = execution_price - (sl_distance * rr_ratio)
             take_profit = round(take_profit, digits)
             self.log(f"   ⚠️  SL ajusté pour respecter stops_level ({stops_level} points)")
         
-        # TP doit être au moins min_distance en dessous de entry_price
-        tp_distance = entry_price - take_profit
+        # TP au moins min_distance en dessous du prix d'exécution
+        tp_distance = execution_price - take_profit
         if tp_distance < min_distance:
-            take_profit = entry_price - min_distance
+            take_profit = execution_price - min_distance
             take_profit = round(take_profit, digits)
             self.log(f"   ⚠️  TP ajusté pour respecter stops_level ({stops_level} points)")
         
-        # Calculer lot size (utiliser entry_price non arrondi pour le calcul)
-        lot_size = self.calculate_lot_size(symbol, entry_price, stop_loss)
+        # Lot basé sur le prix d'exécution réel pour que perte au SL = exactement risk% du capital
+        lot_size = self.calculate_lot_size(symbol, execution_price, stop_loss)
         
         if lot_size <= 0:
             self.log_failed_trade_attempt(
@@ -1806,11 +1878,17 @@ class MT5TradingBot:
             ticket=position_ticket
         )
         
+        # Profit attendu au TP (même logique que risque au SL × R:R)
+        account_info = mt5.account_info()
+        if account_info:
+            risk_amount = account_info.balance * (self.risk_percent / 100.0)
+            expected_tp_profit = risk_amount * rr_ratio
+            self.log(f"   📈 Profit attendu au TP (1%×R:R): ~{expected_tp_profit:.2f} {account_info.currency}")
         self.log(f"\n✅ SHORT ouvert: {symbol}")
         self.log(f"   Ticket: {position_ticket}")
         self.log(f"   Entry: {result.price:.2f}")
-        self.log(f"   SL: {stop_loss:.2f} (distance: {stop_distance:.2f})")
-        self.log(f"   TP: {take_profit:.2f} (distance: {entry_price - take_profit:.2f})")
+        self.log(f"   SL: {stop_loss:.2f} (distance: {sl_distance:.2f})")
+        self.log(f"   TP: {take_profit:.2f} (distance: {execution_price - take_profit:.2f})")
         self.log(f"   Lot: {lot_size}")
         self.log(f"   R:R = 1:{rr_ratio:.1f}")
         
@@ -1849,15 +1927,19 @@ class MT5TradingBot:
         self.log(f"   📊 Perte quotidienne: {daily_loss:.2f} {currency} ({loss_pct:.2f}%) | Limite: {self.max_daily_loss:.2f} {currency}")
         
         # Récupérer les données depuis MT5
-        df = self.get_market_data(symbol)
-        if df is None or len(df) < SMA_SLOW + 10:
+        raw_df = self.get_market_data(symbol)
+        if raw_df is None or len(raw_df) < SMA_SLOW + 10:
             self.log(f"   ⚠️  Données insuffisantes pour {symbol}")
             return
-        
-        # Alignement backtest : on travaille uniquement sur les barres FERMÉES (sans la barre en cours)
-        # Ainsi iloc[-1] = dernière barre fermée, comme en backtest (meilleur win rate).
-        if len(df) > 1:
-            df = df.iloc[:-1]
+
+        # Parité backtest:
+        # - df = barres fermées (signal)
+        # - current_open = open de la bougie suivante (prix de référence d'entrée)
+        if len(raw_df) <= 1:
+            self.log(f"   ⚠️  Données insuffisantes après séparation barres fermées/en cours pour {symbol}")
+            return
+        df = raw_df.iloc[:-1]
+        current_open = float(raw_df.iloc[-1]['open']) if self.use_next_bar_open_for_entry else float(df.iloc[-1]['close'])
         
         # iloc[-1] = dernière barre fermée (indicateurs valides)
         current = df.iloc[-1]
@@ -2032,15 +2114,15 @@ class MT5TradingBot:
         else:
             self.log(f"   📊 Signaux: LONG: {'✅' if long_signal else '❌'} | SHORT: {'✅' if short_signal else '❌'}")
         
+        # Parité backtest: LONG puis SHORT, pas de elif (les deux signaux peuvent être traités sur la même bougie)
         if long_signal:
-            # Un seul actif à la fois : ne pas ouvrir si une position est déjà ouverte sur un autre actif
             if self.has_open_position_on_other_symbol(symbol):
                 self.log(f"   ⏸️  Un autre actif a déjà des positions ouvertes - un seul actif à la fois (règle stratégie)")
-                long_signal = False  # pour ne pas traiter comme signal non utilisé
+                long_signal = False
             else:
                 self.log(f"   🟢 Signal LONG détecté - tentative d'ouverture...")
                 try:
-                    trade = self.open_long_position(symbol, df)
+                    trade = self.open_long_position(symbol, df, entry_price_bar_override=current_open)
                     if trade is None:
                         self.log(f"   ⚠️  Échec d'ouverture LONG {symbol} (vérifications de sécurité)")
                 except Exception as e:
@@ -2051,14 +2133,15 @@ class MT5TradingBot:
                         error_message=str(e)
                     )
                     self.log(f"   ❌ Exception lors de l'ouverture LONG {symbol}: {e}")
-        elif short_signal:
-            # Un seul actif à la fois : ne pas ouvrir si une position est déjà ouverte sur un autre actif
+
+        if short_signal:
             if self.has_open_position_on_other_symbol(symbol):
                 self.log(f"   ⏸️  Un autre actif a déjà des positions ouvertes - un seul actif à la fois (règle stratégie)")
+                short_signal = False
             else:
                 self.log(f"   🔴 Signal SHORT détecté - tentative d'ouverture...")
                 try:
-                    trade = self.open_short_position(symbol, df)
+                    trade = self.open_short_position(symbol, df, entry_price_bar_override=current_open)
                     if trade is None:
                         self.log(f"   ⚠️  Échec d'ouverture SHORT {symbol} (vérifications de sécurité)")
                 except Exception as e:

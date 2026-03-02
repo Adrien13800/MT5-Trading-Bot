@@ -18,7 +18,8 @@ def load_config():
             'symbols': getattr(config, 'SYMBOLS', ['US30', 'NAS100']),
             'risk': getattr(config, 'RISK_PERCENT', 1.0),
             'max_daily_loss': getattr(config, 'MAX_DAILY_LOSS', -250.0),
-            'interval': getattr(config, 'UPDATE_INTERVAL', 300)
+            'interval': getattr(config, 'UPDATE_INTERVAL', 300),
+            'mt5_utc_offset': getattr(config, 'MT5_SERVER_UTC_OFFSET_HOURS', 0)
         }
     except ImportError:
         print("❌ Erreur: Fichier config.py non trouvé")
@@ -62,7 +63,8 @@ def main():
             'symbols': getattr(config_module, 'SYMBOLS', ['US30', 'NAS100']),
             'risk': getattr(config_module, 'RISK_PERCENT', 1.0),
             'max_daily_loss': getattr(config_module, 'MAX_DAILY_LOSS', -250.0),
-            'interval': getattr(config_module, 'UPDATE_INTERVAL', 300)
+            'interval': getattr(config_module, 'UPDATE_INTERVAL', 300),
+            'mt5_utc_offset': getattr(config_module, 'MT5_SERVER_UTC_OFFSET_HOURS', 0)
         }
     else:
         config_data = load_config()

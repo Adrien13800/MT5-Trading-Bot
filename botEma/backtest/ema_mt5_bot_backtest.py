@@ -404,7 +404,7 @@ class MT5BacktestBot:
         
         Args:
             symbol: Symbole à charger
-            years: Nombre d'années demandées (utilisé si use_all_available=False et last_n_months=None)
+            years: Nombre d'années demandées (utilisé si use_all_available=False et last_n_months non utilisé)
             use_all_available: Si True, charge TOUTES les données disponibles (ignore years)
             last_n_months: Si > 0, charge uniquement les N derniers mois (prioritaire sur years)
         """
@@ -437,45 +437,34 @@ class MT5BacktestBot:
                 return None
             print(f"   OK Symbole '{symbol}' active")
         
-        end_date = datetime.now()
-        
-        # Mode "derniers N mois" (prioritaire)
-        if last_n_months is not None and last_n_months > 0:
-            start_date = end_date - timedelta(days=last_n_months * 30)
-            print(f"   Periode demandee: {start_date.strftime('%Y-%m-%d')} a {end_date.strftime('%Y-%m-%d')}")
-            rates = mt5.copy_rates_range(symbol, TIMEFRAME_MT5, start_date, end_date)
-            if rates is None or len(rates) == 0:
-                bars_needed = last_n_months * 30 * 288  # ~288 bougies M5/jour
-                rates = mt5.copy_rates_from_pos(symbol, TIMEFRAME_MT5, 0, bars_needed)
-                if rates is not None and len(rates) > 0:
-                    df_temp = pd.DataFrame(rates)
-                    df_temp['time'] = pd.to_datetime(df_temp['time'], unit='s')
-                    df_temp = df_temp[df_temp['time'] >= start_date]
-                    df_temp = df_temp[df_temp['time'] <= end_date]
-                    if len(df_temp) > 0:
-                        rates = df_temp.to_records(index=False)
-                    else:
-                        rates = None
-        # Si use_all_available, on récupère directement toutes les données
-        elif use_all_available:
+        # Si use_all_available (et pas last_n_months), on récupère directement toutes les données
+        if use_all_available and not (last_n_months is not None and last_n_months > 0):
             print(f"   Mode: Récupération de TOUTES les données disponibles (pas de limite)")
             rates = None
         else:
-            # Calculer la date de début (3 ans en arrière)
-            start_date = end_date - timedelta(days=years * 365)
+            # Calculer la date de début (années ou derniers N mois)
+            end_date = datetime.now()
+            if last_n_months is not None and last_n_months > 0:
+                start_date = end_date - timedelta(days=last_n_months * 30)  # ~30 jours par mois
+            else:
+                start_date = end_date - timedelta(days=years * 365)
             
             print(f"   Periode demandee: {start_date.strftime('%Y-%m-%d')} a {end_date.strftime('%Y-%m-%d')}")
             
             # Récupérer les données (M5 = 5 minutes)
+            # Essayer d'abord avec copy_rates_range
             rates = mt5.copy_rates_range(symbol, TIMEFRAME_MT5, start_date, end_date)
             
-            # Si ça ne fonctionne pas, essayer avec copy_rates_from_pos
+            # Si ça ne fonctionne pas, essayer avec copy_rates_from_pos (récupère depuis le début)
             if rates is None or len(rates) == 0:
                 print(f"   ATTENTION: copy_rates_range n'a pas fonctionne, tentative avec copy_rates_from_pos...")
-                bars_needed = years * 365 * 288
+                # Calculer approximativement le nombre de bougies nécessaires (288 bougies M5 par jour)
+                days_requested = (last_n_months * 30) if (last_n_months is not None and last_n_months > 0) else (years * 365)
+                bars_needed = int(days_requested * 288)  # 288 bougies M5 par jour (24h * 60min / 5min)
                 rates = mt5.copy_rates_from_pos(symbol, TIMEFRAME_MT5, 0, bars_needed)
                 
                 if rates is not None and len(rates) > 0:
+                    # Filtrer les données pour ne garder que celles dans la période demandée
                     df_temp = pd.DataFrame(rates)
                     df_temp['time'] = pd.to_datetime(df_temp['time'], unit='s')
                     df_temp = df_temp[df_temp['time'] >= start_date]
@@ -487,7 +476,7 @@ class MT5BacktestBot:
                     else:
                         rates = None
         
-        # Si toujours pas de données OU si use_all_available (sans last_n_months), récupérer TOUTES les données disponibles
+        # Si toujours pas de données OU si use_all_available, récupérer TOUTES les données disponibles
         if rates is None or len(rates) == 0:
             print(f"   ATTENTION: Pas de donnees pour la periode demandee, recuperation de TOUTES les donnees disponibles...")
             
@@ -565,16 +554,12 @@ class MT5BacktestBot:
             true_range = ranges.max(axis=1)
             df['ATR'] = true_range.rolling(window=ATR_PERIOD).mean()
         
-        # Fenêtre "derniers N mois" si demandée (ex. après fallback tout-charger)
-        if last_n_months is not None and last_n_months > 0 and len(df) > 0:
-            cutoff = df.index[-1] - pd.Timedelta(days=last_n_months * 30)
-            df = df[df.index >= cutoff].copy()
-        
         print(f"   OK {len(df)} bougies chargees ({df.index[0]} a {df.index[-1]})")
         return df
     
     def load_h1_data(self, symbol: str, years: int = 3, use_all_available: bool = True, last_n_months: Optional[int] = None) -> Optional[pd.DataFrame]:
-        """Charge les données H1 pour l'analyse de tendance supérieure"""
+        """Charge les données H1 pour l'analyse de tendance supérieure.
+        last_n_months: si > 0, charge uniquement les N derniers mois (prioritaire sur years)."""
         if not USE_H1_TREND_FILTER:
             return None
         
@@ -592,42 +577,37 @@ class MT5BacktestBot:
             if not mt5.symbol_select(symbol, True):
                 return None
         
-        end_date = datetime.now()
-        
-        # Mode "derniers N mois"
-        if last_n_months is not None and last_n_months > 0:
-            start_date = end_date - timedelta(days=last_n_months * 30)
-            rates = mt5.copy_rates_range(symbol, TIMEFRAME_H1, start_date, end_date)
-            if rates is None or len(rates) == 0:
-                bars_needed = last_n_months * 30 * 24
-                rates = mt5.copy_rates_from_pos(symbol, TIMEFRAME_H1, 0, bars_needed)
-                if rates is not None and len(rates) > 0:
-                    df_temp = pd.DataFrame(rates)
-                    df_temp['time'] = pd.to_datetime(df_temp['time'], unit='s')
-                    df_temp = df_temp[df_temp['time'] >= start_date]
-                    df_temp = df_temp[df_temp['time'] <= end_date]
-                    if len(df_temp) > 0:
-                        rates = df_temp.to_records(index=False)
-                    else:
-                        rates = None
-        elif use_all_available:
+        if use_all_available and not (last_n_months is not None and last_n_months > 0):
+            # Récupérer TOUTES les données H1 disponibles
             print(f"   Mode: Récupération de TOUTES les données H1 disponibles")
             rates = None
         else:
-            start_date = end_date - timedelta(days=years * 365)
+            # Calculer la date de début (années ou derniers N mois)
+            end_date = datetime.now()
+            if last_n_months is not None and last_n_months > 0:
+                start_date = end_date - timedelta(days=last_n_months * 30)
+            else:
+                start_date = end_date - timedelta(days=years * 365)
+            
+            # Récupérer les données H1
             rates = mt5.copy_rates_range(symbol, TIMEFRAME_H1, start_date, end_date)
+            
             if rates is None or len(rates) == 0:
-                bars_needed = years * 365 * 24
+                # Essayer avec copy_rates_from_pos
+                days_requested = (last_n_months * 30) if (last_n_months is not None and last_n_months > 0) else (years * 365)
+                bars_needed = int(days_requested * 24)  # 24 bougies H1 par jour
                 rates = mt5.copy_rates_from_pos(symbol, TIMEFRAME_H1, 0, bars_needed)
+                
                 if rates is not None and len(rates) > 0:
                     df_temp = pd.DataFrame(rates)
                     df_temp['time'] = pd.to_datetime(df_temp['time'], unit='s')
                     df_temp = df_temp[df_temp['time'] >= start_date]
                     df_temp = df_temp[df_temp['time'] <= end_date]
+                    
                     if len(df_temp) > 0:
                         rates = df_temp.to_records(index=False)
         
-        # Si toujours pas de données OU si use_all_available (sans last_n_months), récupérer tout
+        # Si toujours pas de données OU si use_all_available, récupérer TOUTES les données disponibles
         if rates is None or len(rates) == 0:
             if not use_all_available:
                 print(f"   ATTENTION: Pas de donnees H1 pour la periode demandee, recuperation de TOUTES les donnees disponibles...")
@@ -661,10 +641,8 @@ class MT5BacktestBot:
         df['time'] = pd.to_datetime(df['time'], unit='s')
         df.set_index('time', inplace=True)
         
-        # Fenêtre "derniers N mois" si demandée
-        if last_n_months is not None and last_n_months > 0 and len(df) > 0:
-            cutoff = df.index[-1] - pd.Timedelta(days=last_n_months * 30)
-            df = df[df.index >= cutoff].copy()
+        # Les EMA ne sont utilisées QUE sur M5, pas sur H1
+        # On détermine la tendance H1 uniquement avec le prix (pas d'EMA)
         
         return df
     
@@ -882,7 +860,7 @@ class MT5BacktestBot:
         price = current['close']
         sma50 = current[f'SMA_{SMA_SLOW}']
         
-        if sma50 <= 0 or pd.isna(sma50):
+        if sma50 <= 0:
             return True
         
         distance_pct = abs(price - sma50) / sma50
@@ -898,7 +876,7 @@ class MT5BacktestBot:
         ema20 = current[f'EMA_{EMA_FAST}']
         sma50 = current[f'SMA_{SMA_SLOW}']
         
-        if sma50 <= 0 or pd.isna(sma50):
+        if sma50 <= 0:
             return True
         
         spread_pct = abs(ema20 - sma50) / sma50
