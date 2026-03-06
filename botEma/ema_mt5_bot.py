@@ -43,8 +43,8 @@ ATR_LOOKBACK = 20  # Périodes pour moyenne ATR
 # Trading
 ALLOW_LONG = True
 ALLOW_SHORT = True
-MAGIC_NUMBER = 123456
-TRADE_COMMENT = "EMA20_SMA50_Cross"
+MAGIC_NUMBER_DEFAULT = 123456
+TRADE_COMMENT_DEFAULT = "EMA20_SMA50_Cross"
 
 # Protection contre le sur-trading (aligné backtest : 0 = pas de restriction)
 MIN_BARS_BETWEEN_SAME_SETUP = 0
@@ -124,10 +124,9 @@ class Trade:
 class TradingSessionLogger:
     """Gère le logging de la session de trading dans un fichier .txt"""
     
-    def __init__(self):
-        # Créer le nom du fichier avec timestamp
+    def __init__(self, file_prefix: str = "trading_session_"):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_file = f"trading_session_{timestamp}.txt"
+        self.log_file = f"{file_prefix}{timestamp}.txt"
         self.log_file_handle = None
         self.original_print = print
         
@@ -202,51 +201,67 @@ class MT5TradingBot:
     """Bot de trading automatique MT5 basé sur EMA 20 / SMA 50 (Croisement)"""
     
     def __init__(self, login: int, password: str, server: str, 
-                 symbols: List[str], risk_percent: float = 1.0, max_daily_loss: float = -250.0):
+                 symbols: List[str], risk_percent: float = 1.0, max_daily_loss: float = -250.0,
+                 magic_number: int = MAGIC_NUMBER_DEFAULT,
+                 trade_comment: str = TRADE_COMMENT_DEFAULT,
+                 mt5_terminal_path: str = None,
+                 account_name: str = None,
+                 preferred_symbol_by_day: Dict[int, str] = None,
+                 use_daily_preferred_symbol: bool = None,
+                 one_symbol_at_a_time: bool = None,
+                 use_next_bar_open_for_entry: bool = None):
         self.login = login
         self.password = password
         self.server = server
         self.symbols = symbols
         self.risk_percent = risk_percent
         self.max_daily_loss = max_daily_loss
-        self.open_trades: Dict[str, List[Trade]] = {}  # Liste de trades par symbole (plusieurs positions possibles)
+        self.magic_number = magic_number
+        self.trade_comment = trade_comment
+        self.mt5_terminal_path = mt5_terminal_path
+        self.account_name = account_name or server
+        self.open_trades: Dict[str, List[Trade]] = {}
         self.trade_history: List[Trade] = []
         self.last_bar_time: Dict[str, datetime] = {}
-        self.daily_start_equity: Optional[float] = None  # Pour affichage / log
-        self.daily_start_balance: Optional[float] = None  # Aligné backtest : protection quotidienne sur balance (trades fermés)
+        self.daily_start_equity: Optional[float] = None
+        self.daily_start_balance: Optional[float] = None
         self.trading_stopped_daily: bool = False
         self.last_trading_date: Optional[datetime.date] = None
-        # Suivi des dernières positions par symbole et type pour éviter le sur-trading
         self.last_trade_by_symbol_type: Dict[Tuple[str, TradeType], datetime] = {}
-        self.last_loss_time: Optional[datetime] = None  # Pour cooldown après perte
-        # Données H1 pour l'analyse de tendance supérieure
+        self.last_loss_time: Optional[datetime] = None
         self.h1_data: Dict[str, pd.DataFrame] = {}
-        # Suivi de la dernière heure où on a rechargé les données H1 (pour recharger à chaque heure pile)
         self.last_h1_reload_hour: Dict[str, int] = {}
-        # Dernier jour (weekday) vu en run() pour détecter le passage à minuit et logger le changement d'actif du jour
         self.last_run_weekday: Optional[int] = None
         
+        # Config options passées directement (prioritaires sur config.py / globales)
+        self._init_preferred_symbol_by_day = preferred_symbol_by_day
+        self._init_use_daily_preferred_symbol = use_daily_preferred_symbol
+        self._init_one_symbol_at_a_time = one_symbol_at_a_time
+        self._init_use_next_bar_open_for_entry = use_next_bar_open_for_entry
+        
         # ===== LOGGING DE SESSION =====
-        self.session_logger = TradingSessionLogger()
+        log_prefix = f"trading_session_{self.account_name}_" if self.account_name else "trading_session_"
+        self.session_logger = TradingSessionLogger(file_prefix=log_prefix)
         self.session_logger.start()
         
         # ===== TRACKING DES ÉCHECS DE TRADES =====
         self.failed_trade_attempts: int = 0
-        self.failed_trade_log_file = "failed_trades_log.json"
+        suffix = f"_{self.account_name}" if self.account_name else ""
+        self.failed_trade_log_file = f"failed_trades_log{suffix}.json"
         self._init_failed_trade_logger()
         
         self.log("=" * 70)
-        self.log("🤖 EMA TRADING BOT MT5 - Initialisation")
+        self.log(f"🤖 EMA TRADING BOT MT5 - Initialisation [{self.account_name}]")
         self.log("=" * 70)
         
-        # Initialiser MT5 avec le chemin spécifique (configurable pour serveur)
-        mt5_path = r"C:\Program Files\MetaTrader 5\terminal64.exe"
-        try:
-            import config as _cfg
-            if getattr(_cfg, "MT5_TERMINAL_PATH", None):
-                mt5_path = _cfg.MT5_TERMINAL_PATH
-        except ImportError:
-            pass
+        mt5_path = self.mt5_terminal_path or r"C:\Program Files\MetaTrader 5\terminal64.exe"
+        if not self.mt5_terminal_path:
+            try:
+                import config as _cfg
+                if getattr(_cfg, "MT5_TERMINAL_PATH", None):
+                    mt5_path = _cfg.MT5_TERMINAL_PATH
+            except ImportError:
+                pass
         if not mt5.initialize(path=mt5_path):
             error = mt5.last_error()
             self.log(f"❌ Erreur initialisation MT5: {error}")
@@ -326,22 +341,26 @@ class MT5TradingBot:
                     self.log(f"   ❌ Les trades pour {symbol} seront BLOQUÉS tant que les données H1 ne sont pas disponibles")
                     self.log(f"   ❌ Le filtre H1 est OBLIGATOIRE pour la stratégie")
         
-        # Charger l'actif préféré par jour depuis config.py (même logique que backtest)
-        self.use_daily_preferred_symbol = USE_DAILY_PREFERRED_SYMBOL
-        self.one_symbol_at_a_time = ONE_SYMBOL_AT_A_TIME
-        self.use_next_bar_open_for_entry = USE_NEXT_BAR_OPEN_FOR_ENTRY
+        # Charger l'actif préféré par jour : priorité aux valeurs passées au constructeur, sinon config.py
+        self.use_daily_preferred_symbol = self._init_use_daily_preferred_symbol if self._init_use_daily_preferred_symbol is not None else USE_DAILY_PREFERRED_SYMBOL
+        self.one_symbol_at_a_time = self._init_one_symbol_at_a_time if self._init_one_symbol_at_a_time is not None else ONE_SYMBOL_AT_A_TIME
+        self.use_next_bar_open_for_entry = self._init_use_next_bar_open_for_entry if self._init_use_next_bar_open_for_entry is not None else USE_NEXT_BAR_OPEN_FOR_ENTRY
         self.preferred_by_weekday: Dict[int, str] = {}
-        try:
-            import config as bot_config
-            self.use_daily_preferred_symbol = getattr(bot_config, 'USE_DAILY_PREFERRED_SYMBOL', self.use_daily_preferred_symbol)
-            self.one_symbol_at_a_time = getattr(bot_config, 'ONE_SYMBOL_AT_A_TIME', self.one_symbol_at_a_time)
-            self.use_next_bar_open_for_entry = getattr(bot_config, 'USE_NEXT_BAR_OPEN_FOR_ENTRY', self.use_next_bar_open_for_entry)
-            pref = getattr(bot_config, 'PREFERRED_SYMBOL_BY_DAY', None)
-            if pref:
-                self.preferred_by_weekday = {int(k): v for k, v in pref.items()}
-                self.log(f"   📅 Actif du jour: chargé depuis config.py ({len(self.preferred_by_weekday)} jours)")
-        except ImportError:
-            self.log(f"   ⚠️  config.py non trouvé - actif du jour désactivé ou valeurs par défaut")
+        if self._init_preferred_symbol_by_day is not None:
+            self.preferred_by_weekday = {int(k): v for k, v in self._init_preferred_symbol_by_day.items()}
+            self.log(f"   📅 Actif du jour: chargé depuis config ({len(self.preferred_by_weekday)} jours) [{self.account_name}]")
+        else:
+            try:
+                import config as bot_config
+                self.use_daily_preferred_symbol = getattr(bot_config, 'USE_DAILY_PREFERRED_SYMBOL', self.use_daily_preferred_symbol)
+                self.one_symbol_at_a_time = getattr(bot_config, 'ONE_SYMBOL_AT_A_TIME', self.one_symbol_at_a_time)
+                self.use_next_bar_open_for_entry = getattr(bot_config, 'USE_NEXT_BAR_OPEN_FOR_ENTRY', self.use_next_bar_open_for_entry)
+                pref = getattr(bot_config, 'PREFERRED_SYMBOL_BY_DAY', None)
+                if pref:
+                    self.preferred_by_weekday = {int(k): v for k, v in pref.items()}
+                    self.log(f"   📅 Actif du jour: chargé depuis config.py ({len(self.preferred_by_weekday)} jours)")
+            except ImportError:
+                self.log(f"   ⚠️  config.py non trouvé - actif du jour désactivé ou valeurs par défaut")
         
         self.log("=" * 70)
         
@@ -366,7 +385,7 @@ class MT5TradingBot:
         all_pos = mt5.positions_get()
         if not all_pos:
             return False
-        our_pos = [p for p in all_pos if getattr(p, 'magic', None) == MAGIC_NUMBER]
+        our_pos = [p for p in all_pos if getattr(p, 'magic', None) == self.magic_number]
         symbols_with_pos = {p.symbol for p in our_pos}
         return bool(symbols_with_pos and (symbols_with_pos - {current_symbol}))
     
@@ -1268,8 +1287,7 @@ class MT5TradingBot:
         if positions is None:
             return False
         
-        # Compter les positions avec notre magic number
-        count = sum(1 for pos in positions if pos.magic == MAGIC_NUMBER)
+        count = sum(1 for pos in positions if pos.magic == self.magic_number)
         return count > 0
     
     def get_open_positions_count(self, symbol: str) -> int:
@@ -1281,7 +1299,7 @@ class MT5TradingBot:
         if positions is None:
             return 0
         
-        return sum(1 for pos in positions if pos.magic == MAGIC_NUMBER)
+        return sum(1 for pos in positions if pos.magic == self.magic_number)
     
     def get_daily_loss(self) -> float:
         """
@@ -1563,13 +1581,12 @@ class MT5TradingBot:
             "sl": stop_loss,  # SL calculé selon R:R
             "tp": take_profit,  # TP calculé selon R:R
             "deviation": 10,
-            "magic": MAGIC_NUMBER,
-            "comment": TRADE_COMMENT,
+            "magic": self.magic_number,
+            "comment": self.trade_comment,
             "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": mt5.ORDER_FILLING_IOC,  # Utiliser IOC directement comme dans l'ancien code
+            "type_filling": mt5.ORDER_FILLING_IOC,
         }
         
-        # Envoyer l'ordre (plusieurs positions simultanées autorisées)
         result = mt5.order_send(request)
         
         if result.retcode != mt5.TRADE_RETCODE_DONE:
@@ -1814,14 +1831,12 @@ class MT5TradingBot:
             "sl": stop_loss,  # SL calculé selon R:R
             "tp": take_profit,  # TP calculé selon R:R
             "deviation": 10,
-            "magic": MAGIC_NUMBER,
-            "comment": TRADE_COMMENT,
+            "magic": self.magic_number,
+            "comment": self.trade_comment,
             "type_time": mt5.ORDER_TIME_GTC,
-            "type_filling": mt5.ORDER_FILLING_IOC,  # Utiliser IOC directement comme dans l'ancien code
+            "type_filling": mt5.ORDER_FILLING_IOC,
         }
         
-        # VÉRIFICATION FINALE avant envoi: re-vérifier qu'aucune position n'a été ouverte entre temps
-        # Envoyer l'ordre (plusieurs positions simultanées autorisées)
         result = mt5.order_send(request)
         
         if result.retcode != mt5.TRADE_RETCODE_DONE:
@@ -2069,7 +2084,7 @@ class MT5TradingBot:
         # Afficher les positions ouvertes (plusieurs positions possibles)
         positions = mt5.positions_get(symbol=symbol)
         if positions:
-            our_positions = [pos for pos in positions if pos.magic == MAGIC_NUMBER]
+            our_positions = [pos for pos in positions if pos.magic == self.magic_number]
             if our_positions:
                 self.log(f"   📍 {len(our_positions)} position(s) ouverte(s) pour {symbol}:")
                 for pos in our_positions:
@@ -2164,7 +2179,7 @@ class MT5TradingBot:
         if all_positions is None:
             return
         
-        our_positions = [pos for pos in all_positions if pos.magic == MAGIC_NUMBER]
+        our_positions = [pos for pos in all_positions if pos.magic == self.magic_number]
         
         if not our_positions:
             self.log("\n📋 POSITIONS OUVERTES: Aucune")
@@ -2291,7 +2306,7 @@ class MT5TradingBot:
             
             # Vérifier les positions ouvertes (plusieurs positions possibles)
             positions = mt5.positions_get(symbol=symbol)
-            our_positions = [pos for pos in positions if pos.magic == MAGIC_NUMBER] if positions else []
+            our_positions = [pos for pos in positions if pos.magic == self.magic_number] if positions else []
             
             if our_positions:
                 self.log(f"  ✅ {len(our_positions)} position(s) ouverte(s):")
@@ -2309,7 +2324,8 @@ class MT5TradingBot:
     
     def run(self, update_interval: int = 300):
         """Lance le bot en mode continu"""
-        self.log(f"\n🚀 Démarrage du bot (mise à jour toutes les {update_interval} secondes)")
+        self.log(f"\n🚀 Démarrage du bot [{self.account_name}] (mise à jour toutes les {update_interval} secondes)")
+        self.log(f"   Magic number: {self.magic_number}")
         self.log("   Appuyez sur Ctrl+C pour arrêter\n")
         
         iteration = 0

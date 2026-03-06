@@ -2,36 +2,84 @@
 Configuration pour le bot MT5 (PRODUCTION)
 COPIEZ ce fichier en config.py et remplissez vos identifiants
 NE COMMITEZ JAMAIS config.py dans git!
+
+MULTI-COMPTE : Définissez autant de comptes que nécessaire dans le dict ACCOUNTS.
+Lancez le bot avec :  python run_bot.py --account ftmo
+                      python run_bot.py --account vtmarkets
 """
 
-# Identifiants MT5 (à remplir avec vos vraies valeurs)
-MT5_LOGIN = 123456789           # Votre numéro de compte
-MT5_PASSWORD = "CHANGE_ME"      # Votre mot de passe
-MT5_SERVER = "Broker-Server"    # Nom du serveur (ex: "FTMO-Server3", "MetaQuotes-Demo")
+# ============================================================================
+# COMPTES MT5 — Un bloc par broker / compte
+# ============================================================================
+ACCOUNTS = {
 
-# Symboles à trader (vérifiez les noms exacts dans MT5)
-SYMBOLS = ["US30.cash", "US100.cash", "US500.cash"]
+    # ---- Compte FTMO (ou autre prop firm) ----
+    "ftmo": {
+        "MT5_LOGIN": 123456789,
+        "MT5_PASSWORD": "CHANGE_ME",
+        "MT5_SERVER": "FTMO-Server3",
+        "MT5_TERMINAL_PATH": r"C:\Program Files\MetaTrader 5\terminal64.exe",
 
-# Stratégie "actif du jour" + un seul actif à la fois
-# L'actif du jour est recalculé à chaque cycle → mise à jour automatique après minuit
-USE_DAILY_PREFERRED_SYMBOL = True   # Ne trader QUE l'actif du jour (permanent)
-ONE_SYMBOL_AT_A_TIME = True         # Ne jamais avoir 2 actifs en position simultanément
+        "SYMBOLS": ["US30.cash", "US100.cash", "US500.cash"],
 
-# Actif à trader par jour (0=Lundi, 1=Mardi, 2=Mercredi, 3=Jeudi, 4=Vendredi)
-# Le bot lit le jour courant à chaque itération → changement automatique d'un jour à l'autre
-PREFERRED_SYMBOL_BY_DAY = {
-    0: "US30.cash",   # Lundi
-    1: "US100.cash",  # Mardi
-    2: "US500.cash",  # Mercredi
-    3: "US30.cash",   # Jeudi
-    4: "US500.cash",  # Vendredi
+        "RISK_PERCENT": 0.5,
+        "MAX_DAILY_LOSS": -250.0,
+        "UPDATE_INTERVAL": 60,
+
+        "MAGIC_NUMBER": 100001,
+        "TRADE_COMMENT": "EMA_FTMO",
+
+        "USE_DAILY_PREFERRED_SYMBOL": True,
+        "ONE_SYMBOL_AT_A_TIME": True,
+        "PREFERRED_SYMBOL_BY_DAY": {
+            0: "US30.cash",   # Lundi
+            1: "US100.cash",  # Mardi
+            2: "US500.cash",  # Mercredi
+            3: "US30.cash",   # Jeudi
+            4: "US500.cash",  # Vendredi
+        },
+    },
+
+    # ---- Compte VT Markets ----
+    "vtmarkets": {
+        "MT5_LOGIN": 987654321,
+        "MT5_PASSWORD": "CHANGE_ME",
+        "MT5_SERVER": "VTMarketsSC-Live",
+        # Si VT Markets utilise un terminal séparé, indiquez le chemin ici :
+        "MT5_TERMINAL_PATH": r"C:\Program Files\MetaTrader 5 VTMarkets\terminal64.exe",
+
+        "SYMBOLS": ["US30", "US100", "US500"],
+
+        "RISK_PERCENT": 0.5,
+        "MAX_DAILY_LOSS": -250.0,
+        "UPDATE_INTERVAL": 60,
+
+        # Magic number DIFFÉRENT pour ne pas interférer avec l'autre compte
+        "MAGIC_NUMBER": 200001,
+        "TRADE_COMMENT": "EMA_VTM",
+
+        "USE_DAILY_PREFERRED_SYMBOL": True,
+        "ONE_SYMBOL_AT_A_TIME": True,
+        "PREFERRED_SYMBOL_BY_DAY": {
+            0: "US30",   # Lundi
+            1: "US100",  # Mardi
+            2: "US500",  # Mercredi
+            3: "US30",   # Jeudi
+            4: "US500",  # Vendredi
+        },
+    },
 }
 
-# Paramètres de trading
-RISK_PERCENT = 0.5  # % de capital risqué par trade (0.5% = risque réduit)
-
-# Protection quotidienne FTMO
-MAX_DAILY_LOSS = -250.0  # Arrêter le trading si perte quotidienne atteint cette valeur
-
-# Intervalle de vérification (en secondes)
-UPDATE_INTERVAL = 60  # 60 = 1 minute
+# ============================================================================
+# VALEURS PAR DÉFAUT (utilisées si on lance sans --account, rétro-compatible)
+# ============================================================================
+MT5_LOGIN = ACCOUNTS["ftmo"]["MT5_LOGIN"]
+MT5_PASSWORD = ACCOUNTS["ftmo"]["MT5_PASSWORD"]
+MT5_SERVER = ACCOUNTS["ftmo"]["MT5_SERVER"]
+SYMBOLS = ACCOUNTS["ftmo"]["SYMBOLS"]
+RISK_PERCENT = ACCOUNTS["ftmo"]["RISK_PERCENT"]
+MAX_DAILY_LOSS = ACCOUNTS["ftmo"]["MAX_DAILY_LOSS"]
+UPDATE_INTERVAL = ACCOUNTS["ftmo"]["UPDATE_INTERVAL"]
+USE_DAILY_PREFERRED_SYMBOL = ACCOUNTS["ftmo"]["USE_DAILY_PREFERRED_SYMBOL"]
+ONE_SYMBOL_AT_A_TIME = ACCOUNTS["ftmo"]["ONE_SYMBOL_AT_A_TIME"]
+PREFERRED_SYMBOL_BY_DAY = ACCOUNTS["ftmo"]["PREFERRED_SYMBOL_BY_DAY"]
