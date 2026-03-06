@@ -254,15 +254,15 @@ class MT5TradingBot:
         self.log(f"🤖 EMA TRADING BOT MT5 - Initialisation [{self.account_name}]")
         self.log("=" * 70)
         
-        mt5_path = self.mt5_terminal_path or r"C:\Program Files\MetaTrader 5\terminal64.exe"
-        if not self.mt5_terminal_path:
+        mt5_path = self.mt5_terminal_path
+        if not mt5_path:
             try:
                 import config as _cfg
-                if getattr(_cfg, "MT5_TERMINAL_PATH", None):
-                    mt5_path = _cfg.MT5_TERMINAL_PATH
+                mt5_path = getattr(_cfg, "MT5_TERMINAL_PATH", None)
             except ImportError:
                 pass
-        if not mt5.initialize(path=mt5_path):
+        init_kwargs = {"path": mt5_path} if mt5_path else {}
+        if not mt5.initialize(**init_kwargs):
             error = mt5.last_error()
             self.log(f"❌ Erreur initialisation MT5: {error}")
             
