@@ -261,7 +261,7 @@ class MT5TradingBot:
                 mt5_path = getattr(_cfg, "MT5_TERMINAL_PATH", None)
             except ImportError:
                 pass
-        init_kwargs = {"path": mt5_path} if mt5_path else {}
+        init_kwargs = {"path": mt5_path, "portable": True} if mt5_path else {}
         if not mt5.initialize(**init_kwargs):
             error = mt5.last_error()
             self.log(f"❌ Erreur initialisation MT5: {error}")

@@ -16,7 +16,7 @@ except ImportError:
     sys.exit(1)
 
 path = (acct or {}).get("MT5_TERMINAL_PATH") or getattr(config, "MT5_TERMINAL_PATH", None)
-init_kwargs = {"path": path} if path else {}
+init_kwargs = {"path": path, "portable": True} if path else {}
 if not mt5.initialize(**init_kwargs):
     print(f"Erreur init MT5: {mt5.last_error()}")
     sys.exit(1)
