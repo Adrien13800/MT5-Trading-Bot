@@ -13,6 +13,9 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
+# Ajouter le repertoire parent au path pour importer strategy_core
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 try:
     import MetaTrader5 as mt5
     import pandas as pd
@@ -22,82 +25,55 @@ except ImportError:
     print("   Installez-les avec: pip install MetaTrader5 pandas numpy")
     sys.exit(1)
 
-# Configuration EMA/SMA
-EMA_FAST = 20   # EMA rapide (20)
-SMA_SLOW = 50   # SMA lente (50) - remplace EMA 200
-RISK_REWARD_RATIO = 1.5  # R:R par défaut (sera adapté selon pente SMA 50)
-RISK_REWARD_RATIO_FLAT = 1.0  # R:R 1:1 quand SMA 50 est plate
-RISK_REWARD_RATIO_TRENDING = 1.5  # R:R 1:1.5 quand SMA 50 penche
+# ============================================================================
+# IMPORT STRATEGY CORE (source unique de verite pour la logique de trading)
+# ============================================================================
+from strategy_core import (
+    # Constantes
+    EMA_FAST, SMA_SLOW, RISK_REWARD_RATIO_FLAT, RISK_REWARD_RATIO_TRENDING,
+    SMA_SLOPE_MIN, USE_ATR_FILTER, ATR_PERIOD, ATR_MULTIPLIER, ATR_LOOKBACK,
+    USE_ATR_SL, ATR_SL_MULTIPLIER, ALLOW_LONG, ALLOW_SHORT,
+    USE_TREND_FILTER, USE_MOMENTUM_FILTER, USE_DISTANCE_FILTER,
+    MAX_DISTANCE_FROM_EMA200, USE_EMA_SPREAD_FILTER, MAX_EMA_SPREAD,
+    USE_CONFIRMATION_FILTER, CONFIRMATION_BARS, USE_VOLATILITY_FILTER,
+    MAX_VOLATILITY_MULTIPLIER, EMA_TOUCH_TOLERANCE, USE_H1_TREND_FILTER,
+    # Enums
+    TradeType, TradingSession, MarketCondition, MarketTrend,
+    # Fonctions pures
+    compute_indicators,
+    get_trading_session as core_get_trading_session,
+    is_valid_trading_session as core_is_valid_trading_session,
+    is_sma50_flat, get_risk_reward_ratio as core_get_risk_reward_ratio,
+    check_atr_filter as core_check_atr_filter,
+    check_h1_trend as core_check_h1_trend,
+    check_long_signal, check_short_signal,
+    calculate_sl_long, calculate_sl_short, calculate_tp,
+    get_h1_data_at_time as core_get_h1_data_at_time,
+    check_trend_filter as core_check_trend_filter,
+    check_momentum_filter as core_check_momentum_filter,
+    check_distance_from_sma50, check_ema_spread as core_check_ema_spread,
+    check_confirmation_filter as core_check_confirmation_filter,
+    check_volatility_filter as core_check_volatility_filter,
+    get_market_condition as core_get_market_condition,
+    get_market_trend as core_get_market_trend,
+)
 
-# Filtres OPTIMISÉS pour plus de trades ET meilleur WR (PARAMÈTRES ORIGINAUX - 830 trades)
-SMA_SLOPE_MIN = 0.00003  # Pente minimale SMA 50 pour considérer qu'elle "penche" (sinon plate)
-USE_ATR_FILTER = True
-ATR_PERIOD = 14
-ATR_MULTIPLIER = 0.5  # Volatilité minimale réduite (0.5 pour plus de trades)
-ATR_LOOKBACK = 20  # Périodes pour moyenne ATR
-
-# Trading (LONG et SHORT activés)
-ALLOW_LONG = True  # Activé
-ALLOW_SHORT = True  # Activé
+# Constantes specifiques au backtest (pas dans strategy_core)
+RISK_REWARD_RATIO = 1.5
 MAGIC_NUMBER = 123456
 TRADE_COMMENT = "EMA20_SMA50_Cross"
+MIN_BARS_BETWEEN_SAME_SETUP = 0
+COOLDOWN_AFTER_LOSS = 0
+REQUIRE_IMPULSE_BREAK = False
+REQUIRE_REJECTION = False
+USE_ACTIVE_SESSIONS = False
 
-# Protection contre le sur-trading
-MIN_BARS_BETWEEN_SAME_SETUP = 0  # Pas de restriction en backtest
-COOLDOWN_AFTER_LOSS = 0  # Pas de cooldown en backtest
-
-# Filtres pour plus de trades
-USE_TREND_FILTER = True  # Filtre de tendance (désactivé pour stratégie croisement)
-USE_MOMENTUM_FILTER = False  # DÉSACTIVÉ pour plus de trades
-EMA_TOUCH_TOLERANCE = 0.01  # Augmenté à 1% pour plus de détections (pullback plus permissif)
-USE_ATR_SL = True  # Utiliser ATR pour le SL (plus intelligent)
-ATR_SL_MULTIPLIER = 1.5  # Multiplicateur ATR pour le SL
-REQUIRE_IMPULSE_BREAK = False  # DÉSACTIVÉ
-REQUIRE_REJECTION = False  # DÉSACTIVÉ
-USE_ACTIVE_SESSIONS = False  # Optionnel: trader uniquement sessions actives
-
-# NOUVEAUX FILTRES INTELLIGENTS pour améliorer le WR (ciblent les mauvais trades)
-# ASSOUPLIS pour augmenter le nombre de trades
-USE_DISTANCE_FILTER = False  # DÉSACTIVÉ - Trop restrictif (max 2% était trop strict)
-MAX_DISTANCE_FROM_EMA200 = 0.05  # Augmenté à 5% si réactivé
-USE_EMA_SPREAD_FILTER = False  # DÉSACTIVÉ - Trop restrictif pour augmenter les trades
-MAX_EMA_SPREAD = 0.10  # Augmenté à 10% si réactivé
-USE_CONFIRMATION_FILTER = False  # DÉSACTIVÉ - Réduit trop les trades
-CONFIRMATION_BARS = 1  # Réduit à 1 bougie si réactivé
-USE_VOLATILITY_FILTER = False  # DÉSACTIVÉ - Trop restrictif
-MAX_VOLATILITY_MULTIPLIER = 3.0  # Augmenté à 3.0x si réactivé
-
-# Timeframe MT5 (M5 = 5 minutes pour les trades, H1 = 1 heure pour la tendance)
+# Timeframe MT5
 TIMEFRAME_MT5 = mt5.TIMEFRAME_M5
-TIMEFRAME_H1 = mt5.TIMEFRAME_H1  # Pour l'analyse de tendance supérieure
-
-# Filtre de tendance H1 (ne trader que dans le sens de la tendance H1)
-USE_H1_TREND_FILTER = True  # ACTIVÉ - Tendance déterminée par les 3 dernières bougies H1
+TIMEFRAME_H1 = mt5.TIMEFRAME_H1
 
 
-class TradeType(Enum):
-    LONG = "LONG"
-    SHORT = "SHORT"
-
-
-class TradingSession(Enum):
-    """Sessions de trading"""
-    ASIA = "ASIA"        # 00:00 - 08:00 UTC
-    EUROPE = "EUROPE"    # 08:00 - 14:00 UTC
-    US = "US"            # 14:00 - 21:00 UTC
-    OFF_HOURS = "OFF"    # 21:00 - 00:00 UTC
-
-
-class MarketCondition(Enum):
-    """Condition de marché"""
-    BULL = "BULL"        # Prix au-dessus de SMA 50
-    BEAR = "BEAR"        # Prix en-dessous de SMA 50
-
-
-class MarketTrend(Enum):
-    """Tendance du marché"""
-    TRENDING = "TRENDING"  # SMA 50 avec pente significative
-    RANGING = "RANGING"    # SMA 50 plate
+# TradeType, TradingSession, MarketCondition, MarketTrend importes depuis strategy_core
 
 
 @dataclass
@@ -371,19 +347,9 @@ class MT5BacktestBot:
             # Trier par date
             df.sort_index(inplace=True)
             
-            # Calculer EMA 20 et SMA 50
-            df[f'EMA_{EMA_FAST}'] = df['close'].ewm(span=EMA_FAST, adjust=False).mean()
-            df[f'SMA_{SMA_SLOW}'] = df['close'].rolling(window=SMA_SLOW).mean()
-            
-            # Calculer l'ATR si nécessaire
-            if USE_ATR_FILTER:
-                high_low = df['high'] - df['low']
-                high_close = np.abs(df['high'] - df['close'].shift())
-                low_close = np.abs(df['low'] - df['close'].shift())
-                ranges = pd.concat([high_low, high_close, low_close], axis=1)
-                true_range = ranges.max(axis=1)
-                df['ATR'] = true_range.rolling(window=ATR_PERIOD).mean()
-            
+            # Calculer les indicateurs via strategy_core
+            compute_indicators(df)
+
             oldest_date = df.index.min()
             newest_date = df.index.max()
             days_available = (newest_date - oldest_date).days
@@ -541,19 +507,9 @@ class MT5BacktestBot:
         df['time'] = pd.to_datetime(df['time'], unit='s')
         df.set_index('time', inplace=True)
         
-        # Calculer EMA 20 et SMA 50
-        df[f'EMA_{EMA_FAST}'] = df['close'].ewm(span=EMA_FAST, adjust=False).mean()
-        df[f'SMA_{SMA_SLOW}'] = df['close'].rolling(window=SMA_SLOW).mean()
-        
-        # Calculer l'ATR si nécessaire (MÊME logique que la prod)
-        if USE_ATR_FILTER:
-            high_low = df['high'] - df['low']
-            high_close = np.abs(df['high'] - df['close'].shift())
-            low_close = np.abs(df['low'] - df['close'].shift())
-            ranges = pd.concat([high_low, high_close, low_close], axis=1)
-            true_range = ranges.max(axis=1)
-            df['ATR'] = true_range.rolling(window=ATR_PERIOD).mean()
-        
+        # Calculer les indicateurs via strategy_core
+        compute_indicators(df)
+
         print(f"   OK {len(df)} bougies chargees ({df.index[0]} a {df.index[-1]})")
         return df
     
@@ -647,92 +603,17 @@ class MT5BacktestBot:
         return df
     
     def get_h1_data_at_time(self, symbol: str, current_time: datetime) -> Optional[pd.DataFrame]:
-        """
-        Récupère les données H1 jusqu'à un moment donné (pour analyse de tendance)
-        
-        Utilisé pour déterminer la tendance H1 au moment où on analyse un signal M5
-        """
+        """Recupere les donnees H1 filtrees via strategy_core.get_h1_data_at_time."""
         if symbol not in self.h1_data:
             return None
-        
-        df_h1 = self.h1_data[symbol]
-        
-        # Retourner les données jusqu'à la bougie H1 qui contient le moment actuel M5
-        # Trouver la dernière bougie H1 qui est <= current_time (moment du signal M5)
-        h1_data_until_now = df_h1[df_h1.index <= current_time]
-
-        # Besoin d'au moins 3 bougies H1 pour analyser la tendance
-        if len(h1_data_until_now) < 3:
-            return None
-
-        return h1_data_until_now
+        return core_get_h1_data_at_time(self.h1_data[symbol], current_time)
 
     def check_h1_trend(self, symbol: str, current_time: datetime, trade_type: TradeType) -> bool:
-        """
-        Détermine la tendance sur H1 en analysant les 3 dernières bougies H1
-        et vérifie si elle est alignée avec le trade M5
-        
-        STRATÉGIE: 
-        - Analyse les 3 dernières bougies H1 pour déterminer la tendance
-        - Pour LONG: les 3 dernières bougies H1 doivent être en hausse (tendance haussière)
-        - Pour SHORT: les 3 dernières bougies H1 doivent être en baisse (tendance baissière)
-        - M5 prend les trades seulement si alignés avec la tendance H1
-        
-        Retourne True si la tendance H1 est dans le même sens que le trade proposé
-        """
+        """Delegue a strategy_core.check_h1_trend."""
         if not USE_H1_TREND_FILTER:
             return True
-        
         df_h1 = self.get_h1_data_at_time(symbol, current_time)
-        if df_h1 is None or len(df_h1) < 3:
-            return False  # Besoin d'au moins 3 bougies H1 pour déterminer la tendance
-        
-        # Analyser les 3 dernières bougies H1
-        last_3_bars = df_h1.iloc[-3:]
-        prices = last_3_bars['close'].values
-        
-        if trade_type == TradeType.LONG:
-            # Pour LONG M5: la tendance H1 doit être HAUSSIÈRE
-            # Analyser les 3 dernières bougies H1
-            # Tendance haussière si :
-            # - La dernière bougie est >= à la première (tendance générale haussière)
-            # - ET au moins 2 bougies sur 3 sont en hausse par rapport à la précédente
-            price_first = prices[0]
-            price_last = prices[-1]
-            
-            # Vérifier que la tendance générale est haussière
-            if price_last < price_first:
-                return False  # Tendance générale baissière
-            
-            # Compter les hausses entre les bougies consécutives
-            rises = 0
-            for i in range(1, len(prices)):
-                if prices[i] > prices[i-1]:
-                    rises += 1
-            
-            # Tendance haussière si au moins 2 hausses sur 3 bougies
-            return rises >= 2
-        else:  # SHORT
-            # Pour SHORT M5: la tendance H1 doit être BAISSIÈRE
-            # Analyser les 3 dernières bougies H1
-            # Tendance baissière si :
-            # - La dernière bougie est <= à la première (tendance générale baissière)
-            # - ET au moins 2 bougies sur 3 sont en baisse par rapport à la précédente
-            price_first = prices[0]
-            price_last = prices[-1]
-            
-            # Vérifier que la tendance générale est baissière
-            if price_last > price_first:
-                return False  # Tendance générale haussière
-            
-            # Compter les baisses entre les bougies consécutives
-            falls = 0
-            for i in range(1, len(prices)):
-                if prices[i] < prices[i-1]:
-                    falls += 1
-            
-            # Tendance baissière si au moins 2 baisses sur 3 bougies
-            return falls >= 2
+        return core_check_h1_trend(df_h1, trade_type)
     
     def get_market_data_at_index(self, symbol: str, current_index: int) -> Optional[pd.DataFrame]:
         """Récupère les données jusqu'à l'index actuel (pour le backtest)"""
@@ -747,324 +628,68 @@ class MT5BacktestBot:
         
         return df.iloc[:current_index + 1]
     
-    # ========== FONCTIONS DE LOGIQUE (IDENTIQUES À LA PROD) ==========
-    
+    # ========== FONCTIONS DE LOGIQUE (DELEGUEES A STRATEGY_CORE) ==========
+
     def check_ema_slope(self, df: pd.DataFrame) -> bool:
-        """
-        Vérifie si la bougie clôture au-dessus ou en-dessous de l'EMA 20
-        """
         if len(df) < 1:
             return False
-        
         current = df.iloc[-1]
-        price_close = current['close']
-        ema20 = current[f'EMA_{EMA_FAST}']
-        
-        # La bougie doit clôturer au-dessus OU en-dessous de l'EMA 20
-        # (pas exactement sur l'EMA 20)
-        return price_close != ema20
-    
+        return current['close'] != current[f'EMA_{EMA_FAST}']
+
     def is_ema200_flat(self, df: pd.DataFrame) -> bool:
-        """
-        Détermine si la SMA 50 est plate (sans pente significative)
-        Retourne True si plate, False si penche dans un sens
-        """
-        if len(df) < 2:
-            return True  # Par défaut considéré comme plate si pas assez de données
-        
-        sma50_current = df[f'SMA_{SMA_SLOW}'].iloc[-1]
-        sma50_prev = df[f'SMA_{SMA_SLOW}'].iloc[-2]
-        
-        slope = abs(sma50_current - sma50_prev)
-        min_slope = sma50_current * SMA_SLOPE_MIN
-        
-        # Si la pente est inférieure au minimum, la SMA 50 est considérée comme plate
-        return slope < min_slope
-    
+        return is_sma50_flat(df)
+
     def get_risk_reward_ratio(self, df: pd.DataFrame) -> float:
-        """
-        Retourne le R:R adapté selon la pente de la SMA 50
-        - 1.0 (1:1) si SMA 50 est plate
-        - 1.5 (1:1.5) si SMA 50 penche dans un sens
-        """
-        if self.is_ema200_flat(df):
-            return RISK_REWARD_RATIO_FLAT
-        else:
-            return RISK_REWARD_RATIO_TRENDING
-    
+        return core_get_risk_reward_ratio(df)
+
     def check_atr_filter(self, df: pd.DataFrame) -> bool:
-        """Vérifie la volatilité avec ATR (anti faux signaux - éviter marchés compressés)"""
-        if not USE_ATR_FILTER or 'ATR' not in df.columns:
-            return True
-        
-        if len(df) < ATR_LOOKBACK + 1:
-            return False
-        
-        current_atr = df['ATR'].iloc[-1]
-        if pd.isna(current_atr) or current_atr <= 0:
-            return True
-        
-        # Calculer la moyenne ATR sur les X dernières périodes
-        atr_values = df['ATR'].iloc[-(ATR_LOOKBACK + 1):-1]  # Exclure la dernière
-        atr_avg = atr_values.mean()
-        
-        # Ne pas trader si ATR < moyenne ATR (marché compressé)
-        if current_atr < (atr_avg * ATR_MULTIPLIER):
-            return False
-        
-        # Vérifier aussi que la bougie actuelle a une range suffisante
-        candle_range = df['high'].iloc[-1] - df['low'].iloc[-1]
-        min_range = current_atr * ATR_MULTIPLIER
-        
-        return candle_range >= min_range
-    
+        return core_check_atr_filter(df)
+
     def check_trend_filter(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Vérifie que la bougie clôture au-dessus (LONG) ou en-dessous (SHORT) de l'EMA 20"""
-        if not USE_TREND_FILTER or len(df) < 1:
-            return True
-        
-        current = df.iloc[-1]
-        price_close = current['close']
-        ema20 = current[f'EMA_{EMA_FAST}']
-        
-        if trade_type == TradeType.LONG:
-            # Pour LONG: la bougie doit clôturer au-dessus de l'EMA 20
-            return price_close > ema20
-        else:  # SHORT
-            # Pour SHORT: la bougie doit clôturer en-dessous de l'EMA 20
-            return price_close < ema20
-    
+        return core_check_trend_filter(df, trade_type)
+
     def check_momentum_filter(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Vérifie le momentum avant l'entrée (améliore le WR)"""
-        if not USE_MOMENTUM_FILTER or len(df) < 3:
-            return True
-        
-        current = df.iloc[-1]
-        prev = df.iloc[-2]
-        
-        if trade_type == TradeType.LONG:
-            # Pour LONG: vérifier que le prix monte avec force
-            price_momentum = current['close'] - prev['close']
-            return price_momentum > 0  # Prix en hausse
-        else:  # SHORT
-            # Pour SHORT: vérifier que le prix baisse avec force
-            price_momentum = current['close'] - prev['close']
-            return price_momentum < 0  # Prix en baisse
-    
+        return core_check_momentum_filter(df, trade_type)
+
     def check_distance_from_ema200(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Évite les entrées trop loin de la SMA 50 (améliore WR)"""
-        if not USE_DISTANCE_FILTER or len(df) < 1:
-            return True
-        
-        current = df.iloc[-1]
-        price = current['close']
-        sma50 = current[f'SMA_{SMA_SLOW}']
-        
-        if sma50 <= 0:
-            return True
-        
-        distance_pct = abs(price - sma50) / sma50
-        
-        return distance_pct <= MAX_DISTANCE_FROM_EMA200
-    
+        return check_distance_from_sma50(df, trade_type)
+
     def check_ema_spread(self, df: pd.DataFrame) -> bool:
-        """Évite les spreads trop larges entre EMA20 et SMA50 (améliore WR)"""
-        if not USE_EMA_SPREAD_FILTER or len(df) < 1:
-            return True
-        
-        current = df.iloc[-1]
-        ema20 = current[f'EMA_{EMA_FAST}']
-        sma50 = current[f'SMA_{SMA_SLOW}']
-        
-        if sma50 <= 0:
-            return True
-        
-        spread_pct = abs(ema20 - sma50) / sma50
-        
-        return spread_pct <= MAX_EMA_SPREAD
-    
+        return core_check_ema_spread(df)
+
     def check_confirmation_filter(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Confirmation sur plusieurs bougies (améliore WR)"""
-        if not USE_CONFIRMATION_FILTER or len(df) < CONFIRMATION_BARS + 1:
-            return True
-        
-        if trade_type == TradeType.LONG:
-            # Pour LONG: vérifier que les dernières bougies sont haussières
-            recent_closes = df['close'].iloc[-(CONFIRMATION_BARS + 1):]
-            return recent_closes.iloc[-1] > recent_closes.iloc[0]
-        else:  # SHORT
-            # Pour SHORT: vérifier que les dernières bougies sont baissières
-            recent_closes = df['close'].iloc[-(CONFIRMATION_BARS + 1):]
-            return recent_closes.iloc[-1] < recent_closes.iloc[0]
-    
+        return core_check_confirmation_filter(df, trade_type)
+
     def check_volatility_filter(self, df: pd.DataFrame) -> bool:
-        """Évite les entrées dans volatilité excessive (améliore WR)"""
-        if not USE_VOLATILITY_FILTER or 'ATR' not in df.columns or len(df) < ATR_LOOKBACK + 1:
-            return True
-        
-        current_atr = df['ATR'].iloc[-1]
-        if pd.isna(current_atr) or current_atr <= 0:
-            return True
-        
-        # Calculer moyenne ATR
-        atr_values = df['ATR'].iloc[-(ATR_LOOKBACK + 1):-1]
-        atr_avg = atr_values.mean()
-        
-        if atr_avg <= 0:
-            return True
-        
-        # Éviter si volatilité trop élevée (marché agité)
-        return current_atr <= (atr_avg * MAX_VOLATILITY_MULTIPLIER)
-    
+        return core_check_volatility_filter(df)
+
     def find_last_low(self, symbol: str, df: pd.DataFrame, lookback: int = 10) -> float:
-        """Calcule le SL pour LONG (basé sur ATR ou dernier swing valide)"""
-        current_price = df['close'].iloc[-1]
-        
-        # PRIORITÉ: Utiliser ATR pour SL intelligent
-        if USE_ATR_SL and 'ATR' in df.columns and len(df) > 0:
-            current_atr = df['ATR'].iloc[-1]
-            if not pd.isna(current_atr) and current_atr > 0:
-                # SL basé sur ATR (plus adapté à la volatilité)
-                return current_price - (current_atr * ATR_SL_MULTIPLIER)
-        
-        # Fallback: Dernier swing bas valide
-        if len(df) < lookback:
-            lookback = len(df)
-        
-        lows = df['low'].iloc[-lookback:]
-        min_low = lows.min()
-        
-        symbol_info = mt5.symbol_info(symbol)
-        if symbol_info:
-            point = symbol_info.point
-            buffer = point * 5
-            return min_low - buffer
-        
-        return min_low * 0.999
-    
+        return calculate_sl_long(df, lookback)
+
     def find_last_high(self, symbol: str, df: pd.DataFrame, lookback: int = 10) -> float:
-        """Calcule le SL pour SHORT (basé sur ATR ou dernier swing valide)"""
-        current_price = df['close'].iloc[-1]
-        
-        # PRIORITÉ: Utiliser ATR pour SL intelligent
-        if USE_ATR_SL and 'ATR' in df.columns and len(df) > 0:
-            current_atr = df['ATR'].iloc[-1]
-            if not pd.isna(current_atr) and current_atr > 0:
-                # SL basé sur ATR (plus adapté à la volatilité)
-                return current_price + (current_atr * ATR_SL_MULTIPLIER)
-        
-        # Fallback: Dernier swing haut valide
-        if len(df) < lookback:
-            lookback = len(df)
-        
-        highs = df['high'].iloc[-lookback:]
-        max_high = highs.max()
-        
-        symbol_info = mt5.symbol_info(symbol)
-        if symbol_info:
-            point = symbol_info.point
-            buffer = point * 5
-            return max_high + buffer
-        
-        return max_high * 1.001
+        return calculate_sl_short(df, lookback)
     
     def check_long_entry(self, df: pd.DataFrame, symbol: str = "", current_time: datetime = None) -> bool:
-        """
-        Vérifie les conditions d'entrée LONG sur M5
-        
-        STRATÉGIE CROISEMENT:
-        1. H1 détermine la tendance principale (haussière/baissière)
-        2. M5 prend les trades seulement si alignés avec la tendance H1
-        3. Condition M5: EMA 20 croise au-dessus de SMA 50
-        
-        Retourne True si toutes les conditions sont remplies (H1 + M5)
-        """
-        if len(df) < 5:
-            return False
-        
-        # Récupérer le temps actuel si non fourni
-        if current_time is None:
-            current_time = df.index[-1]
-            if hasattr(current_time, 'to_pydatetime'):
-                current_time = current_time.to_pydatetime()
-        
-        # FILTRE SESSION: Vérifier qu'on est dans une session de trading valide (ASIA, EUROPE, US)
-        if not self.is_valid_trading_session(current_time):
-            return False  # Session OFF_HOURS -> pas de trade
-        
-        # FILTRE 0: Tendance H1 (PRIORITÉ ABSOLUE)
-        # Analyse les 3 dernières bougies H1 pour déterminer la tendance
-        if USE_H1_TREND_FILTER and symbol and current_time is not None:
-            if not self.check_h1_trend(symbol, current_time, TradeType.LONG):
-                return False  # Tendance H1 non haussière -> pas de LONG M5
-        
-        current = df.iloc[-1]
-        prev = df.iloc[-2]
-        
-        ema20_current = current[f'EMA_{EMA_FAST}']
-        sma50_current = current[f'SMA_{SMA_SLOW}']
-        ema20_prev = prev[f'EMA_{EMA_FAST}']
-        sma50_prev = prev[f'SMA_{SMA_SLOW}']
-        
-        # Condition M5: EMA 20 doit croiser au-dessus de SMA 50
-        # EMA 20 était en dessous de SMA 50 à la bougie précédente
-        # EMA 20 est maintenant au-dessus de SMA 50
-        if ema20_prev >= sma50_prev:
-            return False  # Pas de croisement haussier
-        
-        if ema20_current <= sma50_current:
-            return False  # Pas encore au-dessus après croisement
-        
-        return True
-    
+        """Delegue a strategy_core.check_long_signal."""
+        df_h1 = None
+        if USE_H1_TREND_FILTER and symbol:
+            if current_time is None:
+                current_time = df.index[-1]
+                if hasattr(current_time, 'to_pydatetime'):
+                    current_time = current_time.to_pydatetime()
+            df_h1 = self.get_h1_data_at_time(symbol, current_time)
+        return check_long_signal(df, df_h1, symbol)
+
     def check_short_entry(self, df: pd.DataFrame, symbol: str = "", current_time: datetime = None) -> bool:
-        """
-        Vérifie les conditions d'entrée SHORT sur M5
-        
-        STRATÉGIE CROISEMENT:
-        1. H1 détermine la tendance principale (haussière/baissière)
-        2. M5 prend les trades seulement si alignés avec la tendance H1
-        3. Condition M5: EMA 20 croise en-dessous de SMA 50
-        
-        Retourne True si toutes les conditions sont remplies (H1 + M5)
-        """
-        if len(df) < 5:
-            return False
-        
-        # Récupérer le temps actuel si non fourni
-        if current_time is None:
-            current_time = df.index[-1]
-            if hasattr(current_time, 'to_pydatetime'):
-                current_time = current_time.to_pydatetime()
-        
-        # FILTRE SESSION: Vérifier qu'on est dans une session de trading valide (ASIA, EUROPE, US)
-        if not self.is_valid_trading_session(current_time):
-            return False  # Session OFF_HOURS -> pas de trade
-        
-        # FILTRE 0: Tendance H1 (PRIORITÉ ABSOLUE)
-        # Analyse les 3 dernières bougies H1 pour déterminer la tendance
-        if USE_H1_TREND_FILTER and symbol and current_time is not None:
-            if not self.check_h1_trend(symbol, current_time, TradeType.SHORT):
-                return False  # Tendance H1 non baissière -> pas de SHORT M5
-        
-        current = df.iloc[-1]
-        prev = df.iloc[-2]
-        
-        ema20_current = current[f'EMA_{EMA_FAST}']
-        sma50_current = current[f'SMA_{SMA_SLOW}']
-        ema20_prev = prev[f'EMA_{EMA_FAST}']
-        sma50_prev = prev[f'SMA_{SMA_SLOW}']
-        
-        # Condition M5: EMA 20 doit croiser en-dessous de SMA 50
-        # EMA 20 était au-dessus de SMA 50 à la bougie précédente
-        # EMA 20 est maintenant en-dessous de SMA 50
-        if ema20_prev <= sma50_prev:
-            return False  # Pas de croisement baissier
-        
-        if ema20_current >= sma50_current:
-            return False  # Pas encore en-dessous après croisement
-        
-        return True
+        """Delegue a strategy_core.check_short_signal."""
+        df_h1 = None
+        if USE_H1_TREND_FILTER and symbol:
+            if current_time is None:
+                current_time = df.index[-1]
+                if hasattr(current_time, 'to_pydatetime'):
+                    current_time = current_time.to_pydatetime()
+            df_h1 = self.get_h1_data_at_time(symbol, current_time)
+        return check_short_signal(df, df_h1, symbol)
     
     def calculate_profit(self, symbol: str, entry_price: float, exit_price: float, lot_size: float, trade_type: TradeType) -> float:
         """Calcule le profit/perte d'un trade (utilise la même logique que calculate_lot_size)"""
@@ -1208,82 +833,27 @@ class MT5BacktestBot:
     # ========== ANALYTICS AVANCÉES ==========
     
     def get_trading_session(self, trade_time: datetime) -> TradingSession:
-        """
-        Détermine la session de trading basée sur l'heure UTC
-        
-        Sessions:
-        - ASIA: 00:00 - 08:00 UTC (Tokyo, Sydney)
-        - EUROPE: 08:00 - 14:00 UTC (Londres, Francfort)
-        - US: 14:00 - 21:00 UTC (New York)
-        - OFF_HOURS: 21:00 - 00:00 UTC (faible activité)
-        """
-        hour = trade_time.hour
-        
-        if 0 <= hour < 8:
-            return TradingSession.ASIA
-        elif 8 <= hour < 14:
-            return TradingSession.EUROPE
-        elif 14 <= hour < 21:
-            return TradingSession.US
-        else:  # 21-24
-            return TradingSession.OFF_HOURS
-    
+        return core_get_trading_session(trade_time)
+
     def is_valid_trading_session(self, trade_time: datetime) -> bool:
-        """
-        Vérifie si on est dans une session de trading valide (ASIA, EUROPE ou US)
-        Retourne False si on est en session OFF_HOURS
-        """
-        session = self.get_trading_session(trade_time)
-        return session != TradingSession.OFF_HOURS
-    
+        return core_is_valid_trading_session(trade_time)
+
     def get_market_condition(self, df: pd.DataFrame) -> MarketCondition:
-        """
-        Détermine si le marché est en Bull ou Bear
-        Basé sur la position du prix par rapport à la SMA 50
-        """
-        if len(df) < 1:
-            return MarketCondition.BULL  # Par défaut
-        
-        current = df.iloc[-1]
-        price = current['close']
-        sma50 = current[f'SMA_{SMA_SLOW}']
-        
-        if pd.isna(sma50):
-            return MarketCondition.BULL
-        
-        if price >= sma50:
-            return MarketCondition.BULL
-        else:
-            return MarketCondition.BEAR
-    
+        return core_get_market_condition(df)
+
     def get_market_trend(self, df: pd.DataFrame) -> Tuple[MarketTrend, float]:
-        """
-        Détermine si le marché est en Tendance ou en Range
-        Basé sur la pente de la SMA 50
-        
-        Retourne: (MarketTrend, slope_value)
-        """
+        """Retourne (MarketTrend, slope_value) - slope calcul specifique au backtest."""
         if len(df) < 10:
             return MarketTrend.RANGING, 0.0
-        
-        # Calculer la pente sur les 10 dernières bougies
         sma_values = df[f'SMA_{SMA_SLOW}'].iloc[-10:]
-        
         if sma_values.isna().any():
             return MarketTrend.RANGING, 0.0
-        
         sma_start = sma_values.iloc[0]
         sma_end = sma_values.iloc[-1]
-        
         if sma_start <= 0:
             return MarketTrend.RANGING, 0.0
-        
-        # Pente en pourcentage
         slope_pct = (sma_end - sma_start) / sma_start
-        
-        # Seuil pour considérer comme "trending" (0.1% de mouvement sur 10 bougies)
         TRENDING_THRESHOLD = 0.001
-        
         if abs(slope_pct) >= TRENDING_THRESHOLD:
             return MarketTrend.TRENDING, slope_pct
         else:

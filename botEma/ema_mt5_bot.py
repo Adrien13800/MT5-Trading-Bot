@@ -26,82 +26,64 @@ except ImportError:
     print("   Installez-les avec: pip install MetaTrader5 pandas numpy")
     sys.exit(1)
 
-# Configuration EMA/SMA (IDENTIQUE AU BACKTEST)
-EMA_FAST = 20   # EMA rapide (20)
-SMA_SLOW = 50   # SMA lente (50) - remplace EMA 200
-RISK_REWARD_RATIO = 1.5  # R:R par défaut (sera adapté selon pente SMA 50)
-RISK_REWARD_RATIO_FLAT = 1.0  # R:R 1:1 quand SMA 50 est plate
-RISK_REWARD_RATIO_TRENDING = 1.5  # R:R 1:1.5 quand SMA 50 penche
+# ============================================================================
+# IMPORT STRATEGY CORE (source unique de verite pour la logique de trading)
+# ============================================================================
+from strategy_core import (
+    # Constantes
+    EMA_FAST, SMA_SLOW, RISK_REWARD_RATIO_FLAT, RISK_REWARD_RATIO_TRENDING,
+    SMA_SLOPE_MIN, USE_ATR_FILTER, ATR_PERIOD, ATR_MULTIPLIER, ATR_LOOKBACK,
+    USE_ATR_SL, ATR_SL_MULTIPLIER, ALLOW_LONG, ALLOW_SHORT,
+    USE_TREND_FILTER, USE_MOMENTUM_FILTER, USE_DISTANCE_FILTER,
+    MAX_DISTANCE_FROM_EMA200, USE_EMA_SPREAD_FILTER, MAX_EMA_SPREAD,
+    USE_CONFIRMATION_FILTER, CONFIRMATION_BARS, USE_VOLATILITY_FILTER,
+    MAX_VOLATILITY_MULTIPLIER, EMA_TOUCH_TOLERANCE, USE_H1_TREND_FILTER,
+    # Enums
+    TradeType, TradingSession,
+    # Fonctions pures
+    compute_indicators,
+    get_trading_session as core_get_trading_session,
+    is_valid_trading_session as core_is_valid_trading_session,
+    is_sma50_flat, get_risk_reward_ratio as core_get_risk_reward_ratio,
+    check_atr_filter as core_check_atr_filter,
+    check_h1_trend as core_check_h1_trend,
+    check_long_signal, check_short_signal,
+    calculate_sl_long, calculate_sl_short, calculate_tp,
+    get_h1_data_at_time as core_get_h1_data_at_time,
+    check_trend_filter as core_check_trend_filter,
+    check_momentum_filter as core_check_momentum_filter,
+    check_distance_from_sma50, check_ema_spread as core_check_ema_spread,
+    check_confirmation_filter as core_check_confirmation_filter,
+    check_volatility_filter as core_check_volatility_filter,
+)
 
-# Filtres OPTIMISÉS pour plus de trades ET meilleur WR (IDENTIQUE AU BACKTEST)
-SMA_SLOPE_MIN = 0.00003  # Pente minimale SMA 50 pour considérer qu'elle "penche" (sinon plate)
-USE_ATR_FILTER = True
-ATR_PERIOD = 14
-ATR_MULTIPLIER = 0.5  # Volatilité minimale réduite (0.5 pour plus de trades) - ALIGNÉ AVEC BACKTEST
-ATR_LOOKBACK = 20  # Périodes pour moyenne ATR
-
-# Trading
-ALLOW_LONG = True
-ALLOW_SHORT = True
+# Constantes specifiques a la production (pas dans strategy_core)
+RISK_REWARD_RATIO = 1.5
 MAGIC_NUMBER_DEFAULT = 123456
 TRADE_COMMENT_DEFAULT = "EMA20_SMA50_Cross"
-
-# Protection contre le sur-trading (aligné backtest : 0 = pas de restriction)
 MIN_BARS_BETWEEN_SAME_SETUP = 0
 COOLDOWN_AFTER_LOSS = 0
+REQUIRE_IMPULSE_BREAK = False
+REQUIRE_REJECTION = False
+USE_ACTIVE_SESSIONS = False
 
-# Filtres pour plus de trades
-USE_TREND_FILTER = True  # Filtre de tendance (désactivé pour stratégie croisement)
-USE_MOMENTUM_FILTER = False  # DÉSACTIVÉ pour plus de trades
-EMA_TOUCH_TOLERANCE = 0.01  # Augmenté à 1% pour plus de détections (pullback plus permissif) - ALIGNÉ AVEC BACKTEST
-USE_ATR_SL = True  # Utiliser ATR pour le SL (plus intelligent)
-ATR_SL_MULTIPLIER = 1.5  # Multiplicateur ATR pour le SL
-REQUIRE_IMPULSE_BREAK = False  # DÉSACTIVÉ
-REQUIRE_REJECTION = False  # DÉSACTIVÉ
-USE_ACTIVE_SESSIONS = False  # Optionnel: trader uniquement sessions actives
-
-# NOUVEAUX FILTRES INTELLIGENTS pour améliorer le WR (ciblent les mauvais trades)
-# ASSOUPLIS pour augmenter le nombre de trades (IDENTIQUE AU BACKTEST)
-USE_DISTANCE_FILTER = False  # DÉSACTIVÉ - Trop restrictif (max 2% était trop strict)
-MAX_DISTANCE_FROM_EMA200 = 0.05  # Augmenté à 5% si réactivé
-USE_EMA_SPREAD_FILTER = False  # DÉSACTIVÉ - Trop restrictif pour augmenter les trades
-MAX_EMA_SPREAD = 0.10  # Augmenté à 10% si réactivé
-USE_CONFIRMATION_FILTER = False  # DÉSACTIVÉ - Réduit trop les trades - ALIGNÉ AVEC BACKTEST
-CONFIRMATION_BARS = 1  # Réduit à 1 bougie si réactivé - ALIGNÉ AVEC BACKTEST
-USE_VOLATILITY_FILTER = False  # DÉSACTIVÉ - Trop restrictif - ALIGNÉ AVEC BACKTEST
-MAX_VOLATILITY_MULTIPLIER = 3.0  # Augmenté à 3.0x si réactivé - ALIGNÉ AVEC BACKTEST
-
-# Timeframe MT5 (M5 = 5 minutes pour les trades, H1 = 1 heure pour la tendance)
+# Timeframe MT5
 TIMEFRAME_MT5 = mt5.TIMEFRAME_M5
-TIMEFRAME_H1 = mt5.TIMEFRAME_H1  # Pour l'analyse de tendance supérieure
+TIMEFRAME_H1 = mt5.TIMEFRAME_H1
 
-# Filtre de tendance H1 (ne trader que dans le sens de la tendance H1)
-USE_H1_TREND_FILTER = True  # ACTIVÉ - Tendance déterminée par les 3 dernières bougies H1
-
-# Stratégie "un actif par jour" (WR du jour) + un seul actif à la fois
-USE_DAILY_PREFERRED_SYMBOL = True   # Trader uniquement l'actif avec le meilleur WR ce jour-là
-ONE_SYMBOL_AT_A_TIME = True        # Ne jamais avoir 2 actifs en position simultanément
-# Parité backtest: prix d'entrée de référence = open de la bougie suivante
+# Strategie "un actif par jour" + un seul actif a la fois
+USE_DAILY_PREFERRED_SYMBOL = True
+ONE_SYMBOL_AT_A_TIME = True
 USE_NEXT_BAR_OPEN_FOR_ENTRY = True
 
-# Symboles MT5 (à adapter selon votre broker)
+# Symboles MT5 (a adapter selon votre broker)
 SYMBOLS_MT5 = {
-    "US30": "US30",  # Dow Jones - peut être US30, US30Cash, etc.
-    "NAS100": "NAS100"  # Nasdaq - peut être NAS100, NAS100Cash, etc.
+    "US30": "US30",
+    "NAS100": "NAS100"
 }
 
 
-class TradeType(Enum):
-    LONG = "LONG"
-    SHORT = "SHORT"
-
-
-class TradingSession(Enum):
-    """Sessions de trading"""
-    ASIA = "ASIA"        # 00:00 - 08:00 UTC
-    EUROPE = "EUROPE"    # 08:00 - 14:00 UTC
-    US = "US"            # 14:00 - 21:00 UTC
-    OFF_HOURS = "OFF"    # 21:00 - 00:00 UTC
+# TradeType et TradingSession importes depuis strategy_core
 
 
 @dataclass
@@ -621,100 +603,53 @@ class MT5TradingBot:
                 else:
                     print(f"   ❌ Symbole {symbol} non trouvé dans MT5")
                     return None
-            
+
             # S'assurer que le symbole est visible
             if not symbol_info.visible:
                 if not mt5.symbol_select(symbol, True):
                     print(f"   ❌ Impossible d'activer le symbole {symbol}")
                     return None
-            
+
             # Récupérer les données historiques
             rates = mt5.copy_rates_from_pos(symbol, TIMEFRAME_MT5, 0, count)
-            
+
             if rates is None or len(rates) == 0:
                 print(f"   ❌ Aucune donnée pour {symbol}")
                 return None
-            
+
             # Convertir en DataFrame
             df = pd.DataFrame(rates)
             df['time'] = pd.to_datetime(df['time'], unit='s')
             df.set_index('time', inplace=True)
-            # Tri chronologique (plus ancien → plus récent) pour que rolling/ewm soient valides en fin de df
             df.sort_index(inplace=True)
-            
-            # Calculer EMA 20 et SMA 50
-            df[f'EMA_{EMA_FAST}'] = df['close'].ewm(span=EMA_FAST, adjust=False).mean()
-            df[f'SMA_{SMA_SLOW}'] = df['close'].rolling(window=SMA_SLOW).mean()
-            
-            # Calculer l'ATR si nécessaire
-            if USE_ATR_FILTER:
-                high_low = df['high'] - df['low']
-                high_close = np.abs(df['high'] - df['close'].shift())
-                low_close = np.abs(df['low'] - df['close'].shift())
-                ranges = pd.concat([high_low, high_close, low_close], axis=1)
-                true_range = ranges.max(axis=1)
-                df['ATR'] = true_range.rolling(window=ATR_PERIOD).mean()
-            
+
+            # Calculer les indicateurs via strategy_core
+            compute_indicators(df)
+
             return df
-            
+
         except Exception as e:
             print(f"❌ Erreur récupération données {symbol}: {e}")
             return None
     
     def check_ema_slope(self, df: pd.DataFrame) -> bool:
-        """Vérifie si la bougie clôture au-dessus ou en-dessous de l'EMA 20. Aligné backtest : iloc[-1]."""
+        """Vérifie si la bougie clôture au-dessus ou en-dessous de l'EMA 20."""
         if len(df) < 2:
             return False
         current = df.iloc[-1]
-        price_close = current['close']
-        ema20 = current[f'EMA_{EMA_FAST}']
-        
-        # La bougie doit clôturer au-dessus OU en-dessous de l'EMA 20
-        # (pas exactement sur l'EMA 20)
-        return price_close != ema20
-    
+        return current['close'] != current[f'EMA_{EMA_FAST}']
+
     def is_ema200_flat(self, df: pd.DataFrame) -> bool:
-        """SMA 50 plate ou non. Aligné backtest : iloc[-1]=dernière barre fermée. Même seuil que backtest (len < 2)."""
-        if len(df) < 2:
-            return True
-        sma50_current = df[f'SMA_{SMA_SLOW}'].iloc[-1]
-        sma50_prev = df[f'SMA_{SMA_SLOW}'].iloc[-2]
-        
-        slope = abs(sma50_current - sma50_prev)
-        min_slope = sma50_current * SMA_SLOPE_MIN
-        
-        # Si la pente est inférieure au minimum, la SMA 50 est considérée comme plate
-        return slope < min_slope
-    
+        """Delegue a strategy_core.is_sma50_flat."""
+        return is_sma50_flat(df)
+
     def get_risk_reward_ratio(self, df: pd.DataFrame) -> float:
-        """
-        Retourne le R:R adapté selon la pente de la SMA 50
-        - 1.0 (1:1) si SMA 50 est plate
-        - 1.5 (1:1.5) si SMA 50 penche dans un sens
-        """
-        if self.is_ema200_flat(df):
-            return RISK_REWARD_RATIO_FLAT
-        else:
-            return RISK_REWARD_RATIO_TRENDING
-    
+        """Delegue a strategy_core.get_risk_reward_ratio."""
+        return core_get_risk_reward_ratio(df)
+
     def check_atr_filter(self, df: pd.DataFrame) -> bool:
-        """Vérifie la volatilité avec ATR (anti faux signaux). Aligné backtest : len < ATR_LOOKBACK + 1."""
-        if not USE_ATR_FILTER or 'ATR' not in df.columns:
-            return True
-        
-        if len(df) < ATR_LOOKBACK + 1:
-            return False
-        current_atr = df['ATR'].iloc[-1]
-        if pd.isna(current_atr) or current_atr <= 0:
-            return True
-        atr_values = df['ATR'].iloc[-1 - ATR_LOOKBACK:-1]
-        atr_avg = atr_values.mean()
-        if current_atr < (atr_avg * ATR_MULTIPLIER):
-            return False
-        candle_range = df['high'].iloc[-1] - df['low'].iloc[-1]
-        min_range = current_atr * ATR_MULTIPLIER
-        
-        return candle_range >= min_range
+        """Delegue a strategy_core.check_atr_filter."""
+        return core_check_atr_filter(df)
     
     def load_h1_data(self, symbol: str) -> Optional[pd.DataFrame]:
         """Charge les données H1 pour l'analyse de tendance supérieure"""
@@ -884,16 +819,8 @@ class MT5TradingBot:
                         # En cas d'erreur, utiliser les données en cache
                         self.log(f"   ⚠️  Erreur rechargement H1 pour {symbol}, utilisation du cache: {e}")
             
-            # Aligné backtest : données H1 jusqu'à current_time inclus (même logique que backtest)
-            ts = pd.Timestamp(current_time)
-            if hasattr(df_h1.index, 'tz') and df_h1.index.tz is not None and getattr(ts, 'tzinfo', None) is None:
-                ts = ts.tz_localize(df_h1.index.tz)
-            h1_data_until_now = df_h1[df_h1.index <= ts]
-            
-            if len(h1_data_until_now) < 3:
-                return None
-            
-            return h1_data_until_now
+            # Filtrer H1 jusqu'a current_time via strategy_core
+            return core_get_h1_data_at_time(df_h1, current_time)
         except Exception as e:
             self.log(f"   ❌ ERREUR H1: Exception dans get_h1_data_at_time pour {symbol}: {e}")
             # En cas d'erreur, retourner None (le filtre H1 bloquera le trade - OBLIGATOIRE)
@@ -901,285 +828,136 @@ class MT5TradingBot:
     
     def check_h1_trend(self, symbol: str, current_time: datetime, trade_type: TradeType) -> bool:
         """
-        Détermine la tendance sur H1 en analysant les 3 dernières bougies H1
-        Retourne False si les données H1 ne sont pas disponibles (trade bloqué)
+        Détermine la tendance sur H1 en analysant les 3 dernières bougies H1.
+        Delegue la logique pure a strategy_core.check_h1_trend.
         """
         if not USE_H1_TREND_FILTER:
             return True
-        
+
         try:
             df_h1 = self.get_h1_data_at_time(symbol, current_time)
             if df_h1 is None or len(df_h1) < 3:
-                # ERREUR: Données H1 insuffisantes -> bloquer le trade (OBLIGATOIRE pour la stratégie)
                 self.log(f"   ❌ ERREUR H1: Données H1 insuffisantes pour {symbol} (df_h1={'None' if df_h1 is None else len(df_h1)} bougies)")
                 self.log(f"   ❌ Trade BLOQUÉ: Le filtre H1 est OBLIGATOIRE pour la stratégie")
                 return False
-            
-            last_3_bars = df_h1.iloc[-3:]
-            prices = last_3_bars['close'].values
-            
-            if len(prices) < 3:
-                self.log(f"   ❌ ERREUR H1: Moins de 3 prix disponibles pour {symbol}")
-                self.log(f"   ❌ Trade BLOQUÉ: Le filtre H1 est OBLIGATOIRE pour la stratégie")
-                return False
-            
-            if trade_type == TradeType.LONG:
-                price_first = prices[0]
-                price_last = prices[-1]
-                if price_last < price_first:
-                    return False
-                rises = sum(1 for i in range(1, len(prices)) if prices[i] > prices[i-1])
-                return rises >= 2
-            else:  # SHORT
-                price_first = prices[0]
-                price_last = prices[-1]
-                if price_last > price_first:
-                    return False
-                falls = sum(1 for i in range(1, len(prices)) if prices[i] < prices[i-1])
-                return falls >= 2
+
+            return core_check_h1_trend(df_h1, trade_type)
         except Exception as e:
-            # ERREUR: Exception lors de l'analyse H1 -> bloquer le trade
             self.log(f"   ❌ ERREUR H1: Exception dans check_h1_trend pour {symbol}: {e}")
             self.log(f"   ❌ Trade BLOQUÉ: Le filtre H1 est OBLIGATOIRE pour la stratégie")
             return False
     
     def get_trading_session(self, trade_time: datetime) -> TradingSession:
-        """
-        Détermine la session de trading basée sur l'heure UTC
-        
-        Sessions:
-        - ASIA: 00:00 - 08:00 UTC (Tokyo, Sydney)
-        - EUROPE: 08:00 - 14:00 UTC (Londres, Francfort)
-        - US: 14:00 - 21:00 UTC (New York)
-        - OFF_HOURS: 21:00 - 00:00 UTC (faible activité)
-        """
-        hour = trade_time.hour
-        
-        if 0 <= hour < 8:
-            return TradingSession.ASIA
-        elif 8 <= hour < 14:
-            return TradingSession.EUROPE
-        elif 14 <= hour < 21:
-            return TradingSession.US
-        else:  # 21-24
-            return TradingSession.OFF_HOURS
-    
+        """Delegue a strategy_core.get_trading_session."""
+        return core_get_trading_session(trade_time)
+
     def is_valid_trading_session(self, trade_time: datetime) -> bool:
-        """
-        Vérifie si on est dans une session de trading valide (ASIA, EUROPE ou US)
-        Retourne False si on est en session OFF_HOURS
-        """
-        session = self.get_trading_session(trade_time)
-        return session != TradingSession.OFF_HOURS
+        """Delegue a strategy_core.is_valid_trading_session."""
+        return core_is_valid_trading_session(trade_time)
     
     def check_trend_filter(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Vérifie que la bougie clôture au-dessus (LONG) ou en-dessous (SHORT) de l'EMA 20"""
-        if not USE_TREND_FILTER or len(df) < 1:
-            return True
-        
-        # Cette fonction n'est plus utilisée avec la stratégie croisement
-        # Conservée pour compatibilité mais toujours retourne True
-        return True
-    
+        """Delegue a strategy_core.check_trend_filter."""
+        return core_check_trend_filter(df, trade_type)
+
     def check_momentum_filter(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Vérifie le momentum avant l'entrée. Aligné backtest : iloc[-1]/[-2]."""
-        if not USE_MOMENTUM_FILTER or len(df) < 3:
-            return True
-        current = df.iloc[-1]
-        prev = df.iloc[-2]
-        
-        if trade_type == TradeType.LONG:
-            # Pour LONG: vérifier que le prix monte avec force
-            price_momentum = current['close'] - prev['close']
-            return price_momentum > 0  # Prix en hausse
-        else:  # SHORT
-            # Pour SHORT: vérifier que le prix baisse avec force
-            price_momentum = current['close'] - prev['close']
-            return price_momentum < 0  # Prix en baisse
-    
+        """Delegue a strategy_core.check_momentum_filter."""
+        return core_check_momentum_filter(df, trade_type)
+
     def check_distance_from_ema200(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Évite les entrées trop loin de la SMA 50. Aligné backtest : len < 1, iloc[-1]."""
-        if not USE_DISTANCE_FILTER or len(df) < 1:
-            return True
-        current = df.iloc[-1]
-        price = current['close']
-        sma50 = current[f'SMA_{SMA_SLOW}']
-        
-        if sma50 <= 0 or pd.isna(sma50):
-            return True
-        
-        distance_pct = abs(price - sma50) / sma50
-        
-        return distance_pct <= MAX_DISTANCE_FROM_EMA200
-    
+        """Delegue a strategy_core.check_distance_from_sma50."""
+        return check_distance_from_sma50(df, trade_type)
+
     def check_ema_spread(self, df: pd.DataFrame) -> bool:
-        """Évite les spreads trop larges entre EMA20 et SMA50. Aligné backtest : len < 1, iloc[-1]."""
-        if not USE_EMA_SPREAD_FILTER or len(df) < 1:
-            return True
-        current = df.iloc[-1]
-        ema20 = current[f'EMA_{EMA_FAST}']
-        sma50 = current[f'SMA_{SMA_SLOW}']
-        
-        if sma50 <= 0 or pd.isna(sma50):
-            return True
-        
-        spread_pct = abs(ema20 - sma50) / sma50
-        
-        return spread_pct <= MAX_EMA_SPREAD
-    
+        """Delegue a strategy_core.check_ema_spread."""
+        return core_check_ema_spread(df)
+
     def check_confirmation_filter(self, df: pd.DataFrame, trade_type: TradeType) -> bool:
-        """Confirmation sur plusieurs bougies. Aligné backtest : LONG last > first, SHORT last < first."""
-        if not USE_CONFIRMATION_FILTER or len(df) < CONFIRMATION_BARS + 1:
-            return True
-        recent_closes = df['close'].iloc[-(CONFIRMATION_BARS + 1):]
-        if trade_type == TradeType.LONG:
-            # Pour LONG: haussier = dernière > première
-            return recent_closes.iloc[-1] > recent_closes.iloc[0]
-        else:  # SHORT
-            # Pour SHORT: baissier = dernière < première
-            return recent_closes.iloc[-1] < recent_closes.iloc[0]
-    
+        """Delegue a strategy_core.check_confirmation_filter."""
+        return core_check_confirmation_filter(df, trade_type)
+
     def check_volatility_filter(self, df: pd.DataFrame) -> bool:
-        """Évite les entrées dans volatilité excessive. Aligné backtest : len < ATR_LOOKBACK + 1."""
-        if not USE_VOLATILITY_FILTER or 'ATR' not in df.columns or len(df) < ATR_LOOKBACK + 1:
-            return True
-        current_atr = df['ATR'].iloc[-1]
-        if pd.isna(current_atr) or current_atr <= 0:
-            return True
-        atr_values = df['ATR'].iloc[-1 - ATR_LOOKBACK:-1]
-        atr_avg = atr_values.mean()
-        
-        if atr_avg <= 0:
-            return True
-        
-        # Éviter si volatilité trop élevée (marché agité)
-        return current_atr <= (atr_avg * MAX_VOLATILITY_MULTIPLIER)
+        """Delegue a strategy_core.check_volatility_filter."""
+        return core_check_volatility_filter(df)
     
     def find_last_low(self, symbol: str, df: pd.DataFrame, lookback: int = 10) -> float:
-        """Calcule le SL pour LONG (ATR ou dernier swing). Aligné backtest : lookback = len(df) si len < lookback."""
-        current_price = df['close'].iloc[-1]
-        
+        """Calcule le SL pour LONG. Utilise strategy_core pour le calcul ATR, MT5 pour le buffer point."""
+        # Calcul ATR via strategy_core
+        sl = calculate_sl_long(df, lookback)
+
+        # En prod, si le fallback swing est utilise, on peut affiner avec le point MT5
         if USE_ATR_SL and 'ATR' in df.columns and len(df) > 0:
             current_atr = df['ATR'].iloc[-1]
             if not pd.isna(current_atr) and current_atr > 0:
-                return current_price - (current_atr * ATR_SL_MULTIPLIER)
-        
+                return sl  # ATR-based, identique au core
+
+        # Fallback swing low avec buffer MT5 (specifique prod)
         if len(df) < lookback:
             lookback = len(df)
         lows = df['low'].iloc[-lookback:]
         min_low = lows.min()
-        
         symbol_info = mt5.symbol_info(symbol)
         if symbol_info:
-            point = symbol_info.point
-            buffer = point * 5
-            return min_low - buffer
-        
+            return min_low - (symbol_info.point * 5)
         return min_low * 0.999
-    
+
     def find_last_high(self, symbol: str, df: pd.DataFrame, lookback: int = 10) -> float:
-        """Calcule le SL pour SHORT (ATR ou dernier swing). Aligné backtest : lookback = len(df) si len < lookback."""
-        current_price = df['close'].iloc[-1]
-        
+        """Calcule le SL pour SHORT. Utilise strategy_core pour le calcul ATR, MT5 pour le buffer point."""
+        # Calcul ATR via strategy_core
+        sl = calculate_sl_short(df, lookback)
+
+        # En prod, si le fallback swing est utilise, on peut affiner avec le point MT5
         if USE_ATR_SL and 'ATR' in df.columns and len(df) > 0:
             current_atr = df['ATR'].iloc[-1]
             if not pd.isna(current_atr) and current_atr > 0:
-                return current_price + (current_atr * ATR_SL_MULTIPLIER)
-        
+                return sl  # ATR-based, identique au core
+
+        # Fallback swing high avec buffer MT5 (specifique prod)
         if len(df) < lookback:
             lookback = len(df)
         highs = df['high'].iloc[-lookback:]
         max_high = highs.max()
-        
         symbol_info = mt5.symbol_info(symbol)
         if symbol_info:
-            point = symbol_info.point
-            buffer = point * 5
-            return max_high + buffer
-        
+            return max_high + (symbol_info.point * 5)
         return max_high * 1.001
     
     def check_long_entry(self, df: pd.DataFrame, symbol: str = "") -> bool:
         """
         Vérifie les conditions d'entrée LONG sur M5.
-        Même logique que le backtest : df ne contient que des barres fermées, donc iloc[-1]=dernière fermée.
+        Delegue a strategy_core.check_long_signal avec les donnees H1.
         """
-        if len(df) < 5:
-            return False
-        
-        current_time = df.index[-1]
-        if hasattr(current_time, 'to_pydatetime'):
-            current_time = current_time.to_pydatetime()
-        
-        if not self.is_valid_trading_session(current_time):
-            return False
-        
+        # Recuperer les donnees H1 pour le filtre de tendance
+        df_h1 = None
         if USE_H1_TREND_FILTER and symbol:
-            h1_trend_ok = self.check_h1_trend(symbol, current_time, TradeType.LONG)
-            if not h1_trend_ok:
+            current_time = df.index[-1]
+            if hasattr(current_time, 'to_pydatetime'):
+                current_time = current_time.to_pydatetime()
+            df_h1 = self.get_h1_data_at_time(symbol, current_time)
+            if df_h1 is None or len(df_h1) < 3:
+                self.log(f"   ❌ ERREUR H1: Données H1 insuffisantes pour {symbol}")
+                self.log(f"   ❌ Trade BLOQUÉ: Le filtre H1 est OBLIGATOIRE pour la stratégie")
                 return False
-        
-        # iloc[-1]=dernière barre fermée, iloc[-2]=avant-dernière (aligné backtest)
-        current = df.iloc[-1]
-        prev = df.iloc[-2]
-        
-        ema20_current = current[f'EMA_{EMA_FAST}']
-        sma50_current = current[f'SMA_{SMA_SLOW}']
-        ema20_prev = prev[f'EMA_{EMA_FAST}']
-        sma50_prev = prev[f'SMA_{SMA_SLOW}']
-        
-        # Aligné backtest : pas de vérification NaN sur les indicateurs d'entrée
-        
-        # Condition M5: EMA 20 doit croiser au-dessus de SMA 50
-        # EMA 20 était en dessous de SMA 50 à la bougie précédente
-        # EMA 20 est maintenant au-dessus de SMA 50
-        if ema20_prev >= sma50_prev:
-            return False  # Pas de croisement haussier
-        
-        if ema20_current <= sma50_current:
-            return False  # Pas encore au-dessus après croisement
-        
-        return True
-    
+
+        return check_long_signal(df, df_h1, symbol)
+
     def check_short_entry(self, df: pd.DataFrame, symbol: str = "") -> bool:
         """
-        Vérifie les conditions d'entrée SHORT sur M5 (même logique que backtest : iloc[-1]/[-2]).
+        Vérifie les conditions d'entrée SHORT sur M5.
+        Delegue a strategy_core.check_short_signal avec les donnees H1.
         """
-        if len(df) < 5:
-            return False
-        
-        current_time = df.index[-1]
-        if hasattr(current_time, 'to_pydatetime'):
-            current_time = current_time.to_pydatetime()
-        
-        if not self.is_valid_trading_session(current_time):
-            return False
-        
+        # Recuperer les donnees H1 pour le filtre de tendance
+        df_h1 = None
         if USE_H1_TREND_FILTER and symbol:
-            h1_trend_ok = self.check_h1_trend(symbol, current_time, TradeType.SHORT)
-            if not h1_trend_ok:
+            current_time = df.index[-1]
+            if hasattr(current_time, 'to_pydatetime'):
+                current_time = current_time.to_pydatetime()
+            df_h1 = self.get_h1_data_at_time(symbol, current_time)
+            if df_h1 is None or len(df_h1) < 3:
+                self.log(f"   ❌ ERREUR H1: Données H1 insuffisantes pour {symbol}")
+                self.log(f"   ❌ Trade BLOQUÉ: Le filtre H1 est OBLIGATOIRE pour la stratégie")
                 return False
-        
-        current = df.iloc[-1]
-        prev = df.iloc[-2]
-        
-        ema20_current = current[f'EMA_{EMA_FAST}']
-        sma50_current = current[f'SMA_{SMA_SLOW}']
-        ema20_prev = prev[f'EMA_{EMA_FAST}']
-        sma50_prev = prev[f'SMA_{SMA_SLOW}']
-        
-        # Aligné backtest : pas de vérification NaN sur les indicateurs d'entrée
-        
-        # Condition M5: EMA 20 doit croiser en-dessous de SMA 50
-        # EMA 20 était au-dessus de SMA 50 à la bougie précédente
-        # EMA 20 est maintenant en-dessous de SMA 50
-        if ema20_prev <= sma50_prev:
-            return False  # Pas de croisement baissier
-        
-        if ema20_current >= sma50_current:
-            return False  # Pas encore en-dessous après croisement
-        
-        return True
+
+        return check_short_signal(df, df_h1, symbol)
     
     def calculate_lot_size(self, symbol: str, entry_price: float, stop_loss: float) -> float:
         """Calcule la taille du lot selon le risque"""
