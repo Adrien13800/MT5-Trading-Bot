@@ -880,83 +880,37 @@ class MT5TradingBot:
         return core_check_volatility_filter(df)
     
     def find_last_low(self, symbol: str, df: pd.DataFrame, lookback: int = 10) -> float:
-        """Calcule le SL pour LONG. Utilise strategy_core pour le calcul ATR, MT5 pour le buffer point."""
-        # Calcul ATR via strategy_core
-        sl = calculate_sl_long(df, lookback)
-
-        # En prod, si le fallback swing est utilise, on peut affiner avec le point MT5
-        if USE_ATR_SL and 'ATR' in df.columns and len(df) > 0:
-            current_atr = df['ATR'].iloc[-1]
-            if not pd.isna(current_atr) and current_atr > 0:
-                return sl  # ATR-based, identique au core
-
-        # Fallback swing low avec buffer MT5 (specifique prod)
-        if len(df) < lookback:
-            lookback = len(df)
-        lows = df['low'].iloc[-lookback:]
-        min_low = lows.min()
-        symbol_info = mt5.symbol_info(symbol)
-        if symbol_info:
-            return min_low - (symbol_info.point * 5)
-        return min_low * 0.999
+        """Calcule le SL pour LONG. Delegue entierement a strategy_core (parite backtest)."""
+        return calculate_sl_long(df, lookback)
 
     def find_last_high(self, symbol: str, df: pd.DataFrame, lookback: int = 10) -> float:
-        """Calcule le SL pour SHORT. Utilise strategy_core pour le calcul ATR, MT5 pour le buffer point."""
-        # Calcul ATR via strategy_core
-        sl = calculate_sl_short(df, lookback)
-
-        # En prod, si le fallback swing est utilise, on peut affiner avec le point MT5
-        if USE_ATR_SL and 'ATR' in df.columns and len(df) > 0:
-            current_atr = df['ATR'].iloc[-1]
-            if not pd.isna(current_atr) and current_atr > 0:
-                return sl  # ATR-based, identique au core
-
-        # Fallback swing high avec buffer MT5 (specifique prod)
-        if len(df) < lookback:
-            lookback = len(df)
-        highs = df['high'].iloc[-lookback:]
-        max_high = highs.max()
-        symbol_info = mt5.symbol_info(symbol)
-        if symbol_info:
-            return max_high + (symbol_info.point * 5)
-        return max_high * 1.001
+        """Calcule le SL pour SHORT. Delegue entierement a strategy_core (parite backtest)."""
+        return calculate_sl_short(df, lookback)
     
     def check_long_entry(self, df: pd.DataFrame, symbol: str = "") -> bool:
         """
         Vérifie les conditions d'entrée LONG sur M5.
-        Delegue a strategy_core.check_long_signal avec les donnees H1.
+        Delegue a strategy_core.check_long_signal avec les donnees H1 (parite backtest).
         """
-        # Recuperer les donnees H1 pour le filtre de tendance
         df_h1 = None
         if USE_H1_TREND_FILTER and symbol:
             current_time = df.index[-1]
             if hasattr(current_time, 'to_pydatetime'):
                 current_time = current_time.to_pydatetime()
             df_h1 = self.get_h1_data_at_time(symbol, current_time)
-            if df_h1 is None or len(df_h1) < 3:
-                self.log(f"   ❌ ERREUR H1: Données H1 insuffisantes pour {symbol}")
-                self.log(f"   ❌ Trade BLOQUÉ: Le filtre H1 est OBLIGATOIRE pour la stratégie")
-                return False
-
         return check_long_signal(df, df_h1, symbol)
 
     def check_short_entry(self, df: pd.DataFrame, symbol: str = "") -> bool:
         """
         Vérifie les conditions d'entrée SHORT sur M5.
-        Delegue a strategy_core.check_short_signal avec les donnees H1.
+        Delegue a strategy_core.check_short_signal avec les donnees H1 (parite backtest).
         """
-        # Recuperer les donnees H1 pour le filtre de tendance
         df_h1 = None
         if USE_H1_TREND_FILTER and symbol:
             current_time = df.index[-1]
             if hasattr(current_time, 'to_pydatetime'):
                 current_time = current_time.to_pydatetime()
             df_h1 = self.get_h1_data_at_time(symbol, current_time)
-            if df_h1 is None or len(df_h1) < 3:
-                self.log(f"   ❌ ERREUR H1: Données H1 insuffisantes pour {symbol}")
-                self.log(f"   ❌ Trade BLOQUÉ: Le filtre H1 est OBLIGATOIRE pour la stratégie")
-                return False
-
         return check_short_signal(df, df_h1, symbol)
     
     def calculate_lot_size(self, symbol: str, entry_price: float, stop_loss: float) -> float:
