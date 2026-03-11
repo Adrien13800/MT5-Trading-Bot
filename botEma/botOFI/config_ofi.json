@@ -1,0 +1,56 @@
+{
+  "analytics": {
+    "log_tick_every_n": 30,
+    "log_decision_volume_insufficient": false
+  },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379,
+    "channel": "TRADE_SIGNALS"
+  },
+  "ofi": {
+    "weights": [0.50, 0.25, 0.15, 0.07, 0.03],
+    "threshold_buy": 0.80,
+    "threshold_sell": -0.80,
+    "threshold_buy_hysteresis": 0.90,
+    "threshold_sell_hysteresis": -0.90,
+    "min_total_volume_btc": 10.0,
+    "min_volume_window_ticks": 3,
+    "cooldown_ms": 800,
+    "cooldown_opposite_sec": 15,
+    "confirm_ticks": 3,
+    "trading_hours_utc": { "start": 8, "end": 22 },
+    "absorption_sensitivity": 0.01,
+    "min_tick_intensity": 5.0,
+    "depth_imbalance_buy_threshold": 0.90,
+    "depth_imbalance_close_threshold": -0.50,
+    "depth_imbalance_sell_threshold": -0.90,
+    "depth_imbalance_close_sell_threshold": 0.50,
+    "cvd_ticks": 20,
+    "sniper_confirm_ticks": 3,
+    "min_cvd_for_buy": 0,
+    "min_cvd_for_sell": 0
+  },
+  "filters": {
+    "atr_period": 14,
+    "atr_timeframe": "D1",
+    "atr_lookback": 20,
+    "atr_min_ratio": 0.3,
+    "cooldown_after_open_sec": 10,
+    "cooldown_opposite_sec": 15,
+    "max_allowed_spread": 20,
+    "trend_ma_period": 20,
+    "trend_ma_timeframe": "M5",
+    "disable_filters_for_testing": false
+  },
+  "mt5": {
+    "symbol": "BTCUSD",
+    "lot_size": 0.01,
+    "sl_points": 70.0,
+    "tp_points": 140.0,
+    "be_threshold_points": 35.0,
+    "be_offset_points": 2.0,
+    "magic": 999
+  },
+  "broker": "VT Markets"
+}
