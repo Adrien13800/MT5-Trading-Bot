@@ -56,17 +56,16 @@ from strategy_core import (
     check_volatility_filter as core_check_volatility_filter,
     get_market_condition as core_get_market_condition,
     get_market_trend as core_get_market_trend,
+    COOLDOWN_AFTER_LOSS, MAX_TRADE_DURATION_MINUTES,
+    BLOCKED_SESSIONS, SESSION_RR,
 )
 
 # Constantes specifiques au backtest (pas dans strategy_core)
-RISK_REWARD_RATIO = 1.5
 MAGIC_NUMBER = 123456
 TRADE_COMMENT = "EMA20_SMA50_Cross"
 MIN_BARS_BETWEEN_SAME_SETUP = 0
-COOLDOWN_AFTER_LOSS = 0
 REQUIRE_IMPULSE_BREAK = False
 REQUIRE_REJECTION = False
-USE_ACTIVE_SESSIONS = False
 
 # Timeframe MT5
 TIMEFRAME_MT5 = mt5.TIMEFRAME_M5
@@ -215,7 +214,16 @@ class MT5BacktestBot:
         print(f"Symboles: {', '.join(symbols)}")
         print(f"EMA Fast: {EMA_FAST}, SMA Slow: {SMA_SLOW}")
         print(f"Risque par trade: {risk_percent}%")
-        print(f"R:R adaptatif: 1:{RISK_REWARD_RATIO_FLAT} (SMA50 plate) / 1:{RISK_REWARD_RATIO_TRENDING} (SMA50 penche)")
+        if SESSION_RR:
+            rr_parts = ", ".join(f"{s.value}=1:{r}" for s, r in SESSION_RR.items())
+            print(f"R:R par session: {rr_parts} (defaut: 1:{RISK_REWARD_RATIO_FLAT})")
+        else:
+            print(f"R:R adaptatif: 1:{RISK_REWARD_RATIO_FLAT} (SMA50 plate) / 1:{RISK_REWARD_RATIO_TRENDING} (SMA50 penche)")
+        if BLOCKED_SESSIONS:
+            blocked_names = ", ".join(s.value for s in BLOCKED_SESSIONS)
+            print(f"Sessions bloquees: {blocked_names}")
+        print(f"Cooldown: {COOLDOWN_AFTER_LOSS} barres M5 apres perte")
+        print(f"Time Exit: {MAX_TRADE_DURATION_MINUTES} min ({MAX_TRADE_DURATION_MINUTES // 5} bougies M5)" if MAX_TRADE_DURATION_MINUTES > 0 else "Time Exit: desactive")
         print(f"Protection quotidienne: {max_daily_loss:.2f}")
         print("=" * 70)
     

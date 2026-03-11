@@ -29,6 +29,7 @@ except ImportError:
 # ============================================================================
 # IMPORT STRATEGY CORE (source unique de verite pour la logique de trading)
 # ============================================================================
+import strategy_core
 from strategy_core import (
     # Constantes
     EMA_FAST, SMA_SLOW, RISK_REWARD_RATIO_FLAT, RISK_REWARD_RATIO_TRENDING,
@@ -38,6 +39,8 @@ from strategy_core import (
     MAX_DISTANCE_FROM_EMA200, USE_EMA_SPREAD_FILTER, MAX_EMA_SPREAD,
     USE_CONFIRMATION_FILTER, CONFIRMATION_BARS, USE_VOLATILITY_FILTER,
     MAX_VOLATILITY_MULTIPLIER, EMA_TOUCH_TOLERANCE, USE_H1_TREND_FILTER,
+    COOLDOWN_AFTER_LOSS, MAX_TRADE_DURATION_MINUTES,
+    BLOCKED_SESSIONS, SESSION_RR,
     # Enums
     TradeType, TradingSession,
     # Fonctions pures
@@ -58,14 +61,11 @@ from strategy_core import (
 )
 
 # Constantes specifiques a la production (pas dans strategy_core)
-RISK_REWARD_RATIO = 1.5
 MAGIC_NUMBER_DEFAULT = 123456
 TRADE_COMMENT_DEFAULT = "EMA20_SMA50_Cross"
 MIN_BARS_BETWEEN_SAME_SETUP = 0
-COOLDOWN_AFTER_LOSS = 0
 REQUIRE_IMPULSE_BREAK = False
 REQUIRE_REJECTION = False
-USE_ACTIVE_SESSIONS = False
 
 # Timeframe MT5
 TIMEFRAME_MT5 = mt5.TIMEFRAME_M5
@@ -305,7 +305,15 @@ class MT5TradingBot:
         self.log(f"⏱️  Timeframe: M5 (5 minutes)")
         self.log(f"📈 EMA Fast: {EMA_FAST}, SMA Slow: {SMA_SLOW}")
         self.log(f"💰 Risque par trade: {risk_percent}%")
-        self.log(f"📊 R:R adaptatif: 1:{RISK_REWARD_RATIO_FLAT} (SMA50 plate) / 1:{RISK_REWARD_RATIO_TRENDING} (SMA50 penche)")
+        if SESSION_RR:
+            rr_parts = ", ".join(f"{s.value}=1:{r}" for s, r in SESSION_RR.items())
+            self.log(f"📊 R:R par session: {rr_parts} (defaut: 1:{RISK_REWARD_RATIO_FLAT})")
+        else:
+            self.log(f"📊 R:R: 1:{RISK_REWARD_RATIO_FLAT} (flat) / 1:{RISK_REWARD_RATIO_TRENDING} (trend)")
+        if BLOCKED_SESSIONS:
+            blocked_names = ", ".join(s.value for s in BLOCKED_SESSIONS)
+            self.log(f"🚫 Sessions bloquees: {blocked_names}")
+        self.log(f"⏱️  Time Exit: {MAX_TRADE_DURATION_MINUTES} min ({MAX_TRADE_DURATION_MINUTES // 5} bougies M5)" if MAX_TRADE_DURATION_MINUTES > 0 else "⏱️  Time Exit: desactive")
         self.log(f"🛡️  Protection quotidienne: {max_daily_loss:.2f} {account_info.currency if account_info else 'USD'}")
         self.log(f"🔧 Filtres: ATR: {'✅' if USE_ATR_FILTER else '❌'}, H1 Trend: {'✅' if USE_H1_TREND_FILTER else '❌'}")
         self.log(f"📈 Trading: LONG: {'✅' if ALLOW_LONG else '❌'}, SHORT: {'✅' if ALLOW_SHORT else '❌'}")
@@ -732,8 +740,9 @@ class MT5TradingBot:
                 if not mt5.symbol_select(symbol, True):
                     return False
             
-            # Récupérer uniquement les 3 dernières bougies H1
-            rates = mt5.copy_rates_from_pos(symbol, TIMEFRAME_H1, 0, 3)
+            # Récupérer les 4 dernières bougies H1 (la dernière peut être en cours/ouverte,
+            # elle sera exclue par get_h1_data_at_time → on a besoin de 4 pour garder 3 fermées)
+            rates = mt5.copy_rates_from_pos(symbol, TIMEFRAME_H1, 0, 4)
             
             if rates is None or len(rates) == 0:
                 return False
@@ -820,6 +829,7 @@ class MT5TradingBot:
                         self.log(f"   ⚠️  Erreur rechargement H1 pour {symbol}, utilisation du cache: {e}")
             
             # Filtrer H1 jusqu'a current_time via strategy_core
+            # (strategy_core exclut automatiquement la barre H1 en cours/ouverte)
             return core_get_h1_data_at_time(df_h1, current_time)
         except Exception as e:
             self.log(f"   ❌ ERREUR H1: Exception dans get_h1_data_at_time pour {symbol}: {e}")
@@ -1809,9 +1819,11 @@ class MT5TradingBot:
             else:
                 self.log(f"   📊 H1: ❌ Données H1 indisponibles ou insuffisantes (df_h1={'None' if df_h1_check is None else len(df_h1_check)} bougies)")
         
-        # Si on est en session OFF_HOURS, indiquer que le trading est bloqué
+        # Si on est en session bloquee, indiquer que le trading est bloque
         if session == TradingSession.OFF_HOURS:
             self.log(f"   ⏸️  Trading bloqué: Session OFF_HOURS (21:00-00:00 UTC)")
+        elif session in BLOCKED_SESSIONS:
+            self.log(f"   ⏸️  Trading bloqué: Session {session.value} (bloquée par config)")
         
         # Afficher les positions ouvertes (plusieurs positions possibles)
         positions = mt5.positions_get(symbol=symbol)
@@ -1823,10 +1835,10 @@ class MT5TradingBot:
                     pos_type = "LONG" if pos.type == mt5.ORDER_TYPE_BUY else "SHORT"
                     self.log(f"      - {pos_type} (Ticket: {pos.ticket}, Profit: {pos.profit:.2f})")
         
-        # Cooldown désactivé (comme en backtest)
-        # if self.is_in_cooldown(current_time):
-        #     print(f"   ⏸️  Cooldown actif après perte - attente de {COOLDOWN_AFTER_LOSS} bougies")
-        #     return
+        # Cooldown apres perte (strategy_core.COOLDOWN_AFTER_LOSS barres M5)
+        if COOLDOWN_AFTER_LOSS > 0 and self.is_in_cooldown(current_time):
+            self.log(f"   ⏸️  Cooldown actif après perte - attente de {COOLDOWN_AFTER_LOSS} bougies")
+            return
         
         # FILTRES DÉSACTIVÉS (comme en backtest actuel)
         # FILTRE 1: La bougie doit clôturer au-dessus ou en-dessous de l'EMA 20
@@ -1902,6 +1914,118 @@ class MT5TradingBot:
         if not long_signal and not short_signal:
             self.log(f"   ⏸️  Aucun signal d'entrée valide")
     
+    def close_position_market(self, ticket, symbol, volume, pos_type):
+        """Ferme une position au prix du marche (pour time exit)"""
+        tick = mt5.symbol_info_tick(symbol)
+        if not tick:
+            self.log(f"   ❌ Impossible d'obtenir le tick pour {symbol}")
+            return False
+        # Pour fermer: envoyer l'ordre inverse
+        if pos_type == mt5.ORDER_TYPE_BUY:
+            close_type = mt5.ORDER_TYPE_SELL
+            price = tick.bid
+        else:
+            close_type = mt5.ORDER_TYPE_BUY
+            price = tick.ask
+        request = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": symbol,
+            "volume": volume,
+            "type": close_type,
+            "position": ticket,
+            "price": price,
+            "deviation": 10,
+            "magic": self.magic_number,
+            "comment": "Time Exit",
+            "type_time": mt5.ORDER_TIME_GTC,
+            "type_filling": mt5.ORDER_FILLING_IOC,
+        }
+        result = mt5.order_send(request)
+        if result and result.retcode == mt5.TRADE_RETCODE_DONE:
+            self.log(f"   ✅ Position {ticket} fermee (Time Exit) | Profit: {result.profit:.2f}")
+            return True
+        else:
+            err = result.retcode if result else "no result"
+            self.log(f"   ❌ Echec fermeture {ticket}: {err}")
+            return False
+
+    def check_time_exit(self):
+        """Ferme les positions ouvertes depuis plus de MAX_TRADE_DURATION_MINUTES"""
+        if MAX_TRADE_DURATION_MINUTES <= 0:
+            return
+        all_positions = mt5.positions_get()
+        if not all_positions:
+            return
+        our_positions = [pos for pos in all_positions if pos.magic == self.magic_number]
+        if not our_positions:
+            return
+        now = datetime.now()
+        for pos in our_positions:
+            open_time = datetime.fromtimestamp(pos.time)
+            elapsed_minutes = (now - open_time).total_seconds() / 60
+            if elapsed_minutes >= MAX_TRADE_DURATION_MINUTES:
+                pos_type_str = "LONG" if pos.type == mt5.ORDER_TYPE_BUY else "SHORT"
+                self.log(f"\n⏱️  Time Exit: {pos.symbol} {pos_type_str} (ticket {pos.ticket}) ouvert depuis {elapsed_minutes:.0f} min (> {MAX_TRADE_DURATION_MINUTES} min)")
+                closed = self.close_position_market(pos.ticket, pos.symbol, pos.volume, pos.type)
+                if closed and pos.profit < 0:
+                    self.last_loss_time = datetime.now()
+                    self.log(f"   ⏸️  Cooldown activé ({COOLDOWN_AFTER_LOSS} barres) après Time Exit en perte")
+                # Nettoyer open_trades
+                if pos.symbol in self.open_trades:
+                    self.open_trades[pos.symbol] = [
+                        t for t in self.open_trades[pos.symbol]
+                        if t.ticket != pos.ticket
+                    ] if isinstance(self.open_trades[pos.symbol], list) else []
+                    if not self.open_trades[pos.symbol]:
+                        del self.open_trades[pos.symbol]
+
+    def detect_closed_positions(self):
+        """Detecte les positions fermees par MT5 (SL/TP) et active le cooldown si perte."""
+        if not self.open_trades:
+            return
+        # Positions encore ouvertes sur MT5
+        mt5_positions = mt5.positions_get()
+        mt5_tickets = set()
+        if mt5_positions:
+            mt5_tickets = {pos.ticket for pos in mt5_positions if pos.magic == self.magic_number}
+
+        # Verifier chaque trade tracke
+        symbols_to_clean = []
+        for symbol, trades in list(self.open_trades.items()):
+            if not isinstance(trades, list):
+                trades = [trades]
+            remaining = []
+            for trade in trades:
+                if hasattr(trade, 'ticket') and trade.ticket not in mt5_tickets:
+                    # Position fermee par MT5 (SL ou TP) — verifier le profit via l'historique
+                    pos_type_str = "LONG" if hasattr(trade, 'type') and trade.type == TradeType.LONG else "SHORT"
+                    # Chercher le deal de fermeture dans l'historique recent
+                    from_time = datetime.now() - timedelta(hours=12)
+                    to_time = datetime.now() + timedelta(hours=1)
+                    deals = mt5.history_deals_get(from_time, to_time)
+                    deal_profit = None
+                    if deals:
+                        for deal in reversed(deals):
+                            if deal.position_id == trade.ticket and deal.entry == 1:  # entry=1 = close
+                                deal_profit = deal.profit + deal.commission + deal.swap
+                                break
+                    if deal_profit is not None:
+                        self.log(f"   📋 Position {symbol} {pos_type_str} (ticket {trade.ticket}) fermee par MT5 | Profit: {deal_profit:.2f}")
+                        if deal_profit < 0:
+                            self.last_loss_time = datetime.now()
+                            self.log(f"   ⏸️  Cooldown activé ({COOLDOWN_AFTER_LOSS} barres) après perte")
+                    else:
+                        self.log(f"   📋 Position {symbol} (ticket {trade.ticket}) fermee par MT5 (profit inconnu)")
+                else:
+                    remaining.append(trade)
+            if remaining:
+                self.open_trades[symbol] = remaining
+            else:
+                symbols_to_clean.append(symbol)
+        for s in symbols_to_clean:
+            if s in self.open_trades:
+                del self.open_trades[s]
+
     def log_open_positions(self):
         """Affiche toutes les positions ouvertes actuellement"""
         if not self.check_connection():
@@ -2085,6 +2209,12 @@ class MT5TradingBot:
                     time.sleep(60)  # Attendre 1 minute avant de réessayer
                     continue
                 
+                # Time exit: fermer les positions ouvertes depuis trop longtemps
+                self.check_time_exit()
+
+                # Detecter les positions fermees par MT5 (SL/TP) et activer le cooldown
+                self.detect_closed_positions()
+
                 # Afficher les positions ouvertes au début de chaque itération
                 self.log_open_positions()
                 

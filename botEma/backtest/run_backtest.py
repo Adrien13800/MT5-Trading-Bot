@@ -9,6 +9,11 @@ import os
 from datetime import datetime, timedelta
 from collections import defaultdict, Counter
 
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 try:
     import pandas as pd
     from openpyxl import Workbook
@@ -29,9 +34,14 @@ else:
     sys.path.insert(0, _backtest_dir)
 
 from ema_mt5_bot_backtest import (
-    MT5BacktestBot, BacktestStats, SimulatedTrade, TradeType, 
-    RISK_REWARD_RATIO, USE_H1_TREND_FILTER, ALLOW_LONG, ALLOW_SHORT,
+    MT5BacktestBot, BacktestStats, SimulatedTrade, TradeType,
+    USE_H1_TREND_FILTER, ALLOW_LONG, ALLOW_SHORT,
     TradingSession, MarketCondition, MarketTrend
+)
+from strategy_core import (
+    COOLDOWN_AFTER_LOSS, MAX_TRADE_DURATION_MINUTES,
+    BLOCKED_SESSIONS, SESSION_RR,
+    RISK_REWARD_RATIO_FLAT, RISK_REWARD_RATIO_TRENDING,
 )
 
 def load_config():
@@ -1186,6 +1196,23 @@ def run_backtest_engine(bot, config, symbol_stats):
                         bot.equity = bot.current_balance
                         bot.closed_trades.append(trade)
                         should_close = True
+                # Time exit: fermer le trade apres MAX_TRADE_DURATION_MINUTES
+                if not should_close and MAX_TRADE_DURATION_MINUTES > 0:
+                    elapsed_minutes = (df.index[bar_index] - trade.entry_time).total_seconds() / 60
+                    if elapsed_minutes >= MAX_TRADE_DURATION_MINUTES:
+                        trade.exit_price = current_bar['close']
+                        trade.exit_time = df.index[bar_index]
+                        trade.exit_bar_index = bar_index
+                        trade.exit_reason = "TIME"
+                        profit = bot.calculate_profit(symbol, trade.entry_price, trade.exit_price, trade.lot_size, trade.type)
+                        trade.profit = profit
+                        bot.current_balance += profit
+                        bot.equity = bot.current_balance
+                        if profit < 0:
+                            bot.last_loss_time = df.index[bar_index]
+                        bot.closed_trades.append(trade)
+                        should_close = True
+
                 if should_close:
                     trades_to_close.append(trade_index)
             for trade_index in reversed(trades_to_close):
@@ -1269,6 +1296,12 @@ def run_backtest_engine(bot, config, symbol_stats):
                 if s != symbol and trades_list:
                     return True
             return False
+
+        # Cooldown apres perte (meme logique que prod)
+        if COOLDOWN_AFTER_LOSS > 0 and bot.last_loss_time is not None:
+            elapsed_bars = (current_bar_time - bot.last_loss_time).total_seconds() / 300
+            if elapsed_bars < COOLDOWN_AFTER_LOSS:
+                continue
 
         if ALLOW_LONG:
             long_signal = bot.check_long_entry(market_data, symbol, current_bar_time)

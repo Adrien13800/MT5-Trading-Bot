@@ -25,8 +25,8 @@ EMA_FAST = 20
 SMA_SLOW = 50
 
 # Risk/Reward
-RISK_REWARD_RATIO_FLAT = 1.0       # R:R 1:1 quand SMA 50 est plate
-RISK_REWARD_RATIO_TRENDING = 1.5   # R:R 1:1.5 quand SMA 50 penche
+RISK_REWARD_RATIO_FLAT = 2.0       # R:R 1:2 fixe (optimise R3: +129% rendement)
+RISK_REWARD_RATIO_TRENDING = 2.0   # R:R 1:2 fixe (optimise R3: +129% rendement)
 
 # Pente SMA 50
 SMA_SLOPE_MIN = 0.00003
@@ -60,6 +60,13 @@ EMA_TOUCH_TOLERANCE = 0.01
 
 # H1 trend filter
 USE_H1_TREND_FILTER = True
+H1_BARS_REQUIRED = 2  # Nombre de barres H1 fermees pour le filtre (2 = plus reactif, 3 = plus strict)
+
+# Cooldown apres perte (en barres M5)
+COOLDOWN_AFTER_LOSS = 2  # 0 = desactive, 2 = attendre 10 min apres un SL (optimise R5)
+
+# Time exit: fermer un trade apres N minutes sans toucher SL ni TP
+MAX_TRADE_DURATION_MINUTES = 210  # 210 min = 3h30 = 42 bougies M5 (optimise R5). 0 = desactive.
 
 
 # ============================================================================
@@ -76,6 +83,16 @@ class TradingSession(Enum):
     EUROPE = "EUROPE"      # 08:00 - 14:00 UTC
     US = "US"              # 14:00 - 21:00 UTC
     OFF_HOURS = "OFF"      # 21:00 - 00:00 UTC
+
+
+# Session blocking (optimise R6: US session perd -4300$, WR 32%)
+BLOCKED_SESSIONS = [TradingSession.US]  # Sessions ou aucun nouveau trade n'est ouvert
+
+# R:R par session (optimise R6: EU=2.5 ASIA=2.0 → +182.6% rendement)
+SESSION_RR = {
+    TradingSession.EUROPE: 2.5,
+    TradingSession.ASIA: 2.0,
+}
 
 
 class MarketCondition(Enum):
@@ -132,8 +149,13 @@ def get_trading_session(trade_time: datetime) -> TradingSession:
 
 
 def is_valid_trading_session(trade_time: datetime) -> bool:
-    """True si on est dans une session valide (pas OFF_HOURS)."""
-    return get_trading_session(trade_time) != TradingSession.OFF_HOURS
+    """True si on est dans une session valide (pas OFF_HOURS ni bloquee)."""
+    session = get_trading_session(trade_time)
+    if session == TradingSession.OFF_HOURS:
+        return False
+    if session in BLOCKED_SESSIONS:
+        return False
+    return True
 
 
 # ============================================================================
@@ -152,7 +174,16 @@ def is_sma50_flat(df: pd.DataFrame) -> bool:
 
 
 def get_risk_reward_ratio(df: pd.DataFrame) -> float:
-    """Retourne le R:R adapte: 1.0 si SMA50 plate, 1.5 si elle penche."""
+    """Retourne le R:R adapte par session (R6) ou par pente SMA50."""
+    # R:R par session si configure
+    if SESSION_RR and len(df) > 0:
+        current_time = df.index[-1]
+        if hasattr(current_time, 'to_pydatetime'):
+            current_time = current_time.to_pydatetime()
+        session = get_trading_session(current_time)
+        if session in SESSION_RR:
+            return SESSION_RR[session]
+
     if is_sma50_flat(df):
         return RISK_REWARD_RATIO_FLAT
     return RISK_REWARD_RATIO_TRENDING
@@ -259,10 +290,13 @@ def check_volatility_filter(df: pd.DataFrame) -> bool:
 
 def check_h1_trend(df_h1: Optional[pd.DataFrame], trade_type: TradeType) -> bool:
     """
-    Analyse les 3 dernieres bougies H1 pour determiner la tendance.
+    Analyse les dernieres bougies H1 fermees pour determiner la tendance.
+
+    Mode H1_BARS_REQUIRED=2 : la derniere H1 fermee doit aller dans le sens du trade.
+    Mode H1_BARS_REQUIRED=3 : 3 barres, au moins 2 dans le sens + direction globale.
 
     Args:
-        df_h1: DataFrame H1 filtre jusqu'au moment actuel (ou None)
+        df_h1: DataFrame H1 filtre (barres fermees uniquement)
         trade_type: LONG ou SHORT
 
     Returns:
@@ -271,29 +305,31 @@ def check_h1_trend(df_h1: Optional[pd.DataFrame], trade_type: TradeType) -> bool
     if not USE_H1_TREND_FILTER:
         return True
 
-    if df_h1 is None or len(df_h1) < 3:
+    n = H1_BARS_REQUIRED
+
+    if df_h1 is None or len(df_h1) < n:
         return False
 
-    last_3_bars = df_h1.iloc[-3:]
-    prices = last_3_bars['close'].values
+    prices = df_h1.iloc[-n:]['close'].values
 
-    if len(prices) < 3:
-        return False
-
-    if trade_type == TradeType.LONG:
-        price_first = prices[0]
-        price_last = prices[-1]
-        if price_last < price_first:
-            return False
-        rises = sum(1 for i in range(1, len(prices)) if prices[i] > prices[i - 1])
-        return rises >= 2
-    else:  # SHORT
-        price_first = prices[0]
-        price_last = prices[-1]
-        if price_last > price_first:
-            return False
-        falls = sum(1 for i in range(1, len(prices)) if prices[i] < prices[i - 1])
-        return falls >= 2
+    if n == 2:
+        # Mode 2 barres: la derniere fermee doit aller dans le sens du trade
+        if trade_type == TradeType.LONG:
+            return prices[1] > prices[0]
+        else:
+            return prices[1] < prices[0]
+    else:
+        # Mode 3 barres (original strict)
+        if trade_type == TradeType.LONG:
+            if prices[-1] < prices[0]:
+                return False
+            rises = sum(1 for i in range(1, len(prices)) if prices[i] > prices[i - 1])
+            return rises >= 2
+        else:
+            if prices[-1] > prices[0]:
+                return False
+            falls = sum(1 for i in range(1, len(prices)) if prices[i] < prices[i - 1])
+            return falls >= 2
 
 
 # ============================================================================
@@ -469,8 +505,18 @@ def get_market_trend(df: pd.DataFrame) -> MarketTrend:
 
 def get_h1_data_at_time(df_h1: pd.DataFrame, current_time: datetime) -> Optional[pd.DataFrame]:
     """
-    Filtre le DataFrame H1 pour ne garder que les bougies <= current_time.
-    Retourne None si moins de 3 bougies disponibles.
+    Filtre le DataFrame H1 pour ne garder que les bougies FERMEES a current_time.
+
+    Une barre H1 avec timestamp T couvre la periode [T, T+1h).
+    Elle n'est fermee que lorsque current_time >= T + 1h.
+    On filtre donc: bar.index < floor(current_time, 1h)
+    ce qui exclut la barre H1 en cours (ouverte).
+
+    Cela evite:
+      - En PROD: utiliser une barre H1 dont le 'close' est le prix live (pas le close final)
+      - En BACKTEST: un look-ahead bias (utiliser le close final d'une barre pas encore fermee)
+
+    Retourne None si moins de 3 bougies fermees disponibles.
     """
     if df_h1 is None or len(df_h1) == 0:
         return None
@@ -479,9 +525,12 @@ def get_h1_data_at_time(df_h1: pd.DataFrame, current_time: datetime) -> Optional
     if hasattr(df_h1.index, 'tz') and df_h1.index.tz is not None and getattr(ts, 'tzinfo', None) is None:
         ts = ts.tz_localize(df_h1.index.tz)
 
-    h1_until_now = df_h1[df_h1.index <= ts]
+    # Seules les barres dont l'heure de debut < heure courante arrondie sont fermees.
+    # Ex: a 15:05 → cutoff = 15:00 → on garde les barres < 15:00 (derniere: 14:00, fermee a 15:00)
+    cutoff = ts.floor('h')
+    h1_closed = df_h1[df_h1.index < cutoff]
 
-    if len(h1_until_now) < 3:
+    if len(h1_closed) < 3:
         return None
 
-    return h1_until_now
+    return h1_closed
