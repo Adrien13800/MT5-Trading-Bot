@@ -183,7 +183,7 @@ class MT5TradingBot:
     """Bot de trading automatique MT5 basé sur EMA 20 / SMA 50 (Croisement)"""
     
     def __init__(self, login: int, password: str, server: str, 
-                 symbols: List[str], risk_percent: float = 1.0, max_daily_loss: float = -250.0,
+                 symbols: List[str], risk_percent: float = 1.0, max_daily_loss: float = None,
                  magic_number: int = MAGIC_NUMBER_DEFAULT,
                  trade_comment: str = TRADE_COMMENT_DEFAULT,
                  mt5_terminal_path: str = None,
@@ -236,40 +236,12 @@ class MT5TradingBot:
         self.log(f"🤖 EMA TRADING BOT MT5 - Initialisation [{self.account_name}]")
         self.log("=" * 70)
         
-        mt5_path = self.mt5_terminal_path
-        if not mt5_path:
-            try:
-                import config as _cfg
-                mt5_path = getattr(_cfg, "MT5_TERMINAL_PATH", None)
-            except ImportError:
-                pass
-        init_kwargs = {"path": mt5_path, "portable": True} if mt5_path else {}
-        if not mt5.initialize(**init_kwargs):
-            error = mt5.last_error()
-            self.log(f"❌ Erreur initialisation MT5: {error}")
-            
-            # Messages d'aide selon le type d'erreur
-            if error[0] == -6:
-                self.log("\n⚠️  ERREUR D'AUTORISATION MT5")
-                self.log("   Solutions possibles:")
-                self.log("   1. Ouvrez MetaTrader 5 manuellement")
-                self.log("   2. Allez dans Outils > Options > Expert Advisors")
-                self.log("   3. Cochez 'Autoriser le trading algorithmique'")
-                self.log("   4. Cochez 'Autoriser l'importation de DLL'")
-                self.log("   5. Redémarrez MetaTrader 5")
-                self.log("   6. Relancez le bot")
-            elif error[0] == -1:
-                self.log("\n⚠️  MT5 N'EST PAS INSTALLÉ OU NON TROUVÉ")
-                self.log("   Installez MetaTrader 5 depuis: https://www.metatrader5.com/")
-            
+        self._resolve_mt5_path()
+        
+        if not self._initialize_mt5():
             sys.exit(1)
         
-        self.log("✅ MT5 initialisé")
-        
-        # Se connecter au compte
-        if not self.connect():
-            self.log("❌ Échec de la connexion MT5")
-            sys.exit(1)
+        self.log("✅ MT5 initialisé et connecté")
         
         # Afficher les infos du compte
         account_info = mt5.account_info()
@@ -383,18 +355,61 @@ class MT5TradingBot:
         """Méthode de logging qui écrit dans la console ET dans le fichier"""
         self.session_logger.log(message)
     
+    def _resolve_mt5_path(self):
+        """Détermine et stocke le chemin du terminal MT5 à utiliser."""
+        if not self.mt5_terminal_path:
+            try:
+                import config as _cfg
+                self.mt5_terminal_path = getattr(_cfg, "MT5_TERMINAL_PATH", None)
+            except ImportError:
+                pass
+
+    def _initialize_mt5(self) -> bool:
+        """Initialise le terminal MT5 ET se connecte au compte.
+        
+        Passe login/password/server directement à initialize() pour que
+        la lib MT5 associe ce processus Python au bon terminal.
+        """
+        mt5.shutdown()
+
+        init_kwargs: dict = {}
+        if self.mt5_terminal_path:
+            init_kwargs["path"] = self.mt5_terminal_path
+            init_kwargs["portable"] = True
+        init_kwargs["login"] = self.login
+        init_kwargs["password"] = self.password
+        init_kwargs["server"] = self.server
+        init_kwargs["timeout"] = 30_000
+
+        self.log(f"🔌 Connexion MT5 → terminal={self.mt5_terminal_path or 'défaut'}, "
+                 f"login={self.login}, server={self.server}")
+
+        if not mt5.initialize(**init_kwargs):
+            error = mt5.last_error()
+            self.log(f"❌ Erreur initialisation MT5: {error}")
+            if error[0] == -6:
+                self.log("   ⚠️  Autorisation refusée — vérifiez Outils > Options > Expert Advisors")
+            elif error[0] == -1:
+                self.log("   ⚠️  Terminal introuvable — vérifiez MT5_TERMINAL_PATH")
+            return False
+
+        account_info = mt5.account_info()
+        if account_info is None or account_info.login != self.login:
+            self.log(f"❌ Login échoué après initialize: {mt5.last_error()}")
+            return False
+
+        return True
+
     def connect(self) -> bool:
-        """Se connecte au compte MT5"""
+        """Se connecte au compte MT5 (login seul, terminal déjà initialisé)."""
         authorized = mt5.login(
             login=self.login,
             password=self.password,
             server=self.server
         )
-        
         if not authorized:
             self.log(f"❌ Échec connexion MT5: {mt5.last_error()}")
             return False
-        
         return True
     
     # ===== MÉTHODES DE TRACKING DES ÉCHECS DE TRADES =====
@@ -546,14 +561,20 @@ class MT5TradingBot:
         print("🔄 Compteur d'échecs de trades réinitialisé")
     
     def check_connection(self) -> bool:
-        """Vérifie si la connexion MT5 est toujours active et reconnecte si nécessaire"""
+        """Vérifie si la connexion MT5 est toujours active et reconnecte si nécessaire.
+        
+        En cas de perte de connexion, réinitialise complètement le terminal
+        (pas seulement le login) pour se reconnecter au bon terminal.
+        """
         account_info = mt5.account_info()
-        if account_info is None:
-            self.log("⚠️  Connexion MT5 perdue, tentative de reconnexion...")
-            if not self.connect():
-                self.log("❌ Échec de reconnexion")
-                return False
-            self.log("✅ Reconnexion réussie")
+        if account_info is not None and account_info.login == self.login:
+            return True
+
+        self.log("⚠️  Connexion MT5 perdue, réinitialisation complète du terminal...")
+        if not self._initialize_mt5():
+            self.log("❌ Échec de reconnexion")
+            return False
+        self.log("✅ Reconnexion réussie")
         return True
     
     def find_symbol_variant(self, symbol_base: str) -> Optional[str]:
@@ -1100,14 +1121,12 @@ class MT5TradingBot:
     
     def can_trade_today(self) -> Tuple[bool, str]:
         """
-        Vérifie si on peut trader aujourd'hui (pas de limite de perte atteinte)
-        
-        NOTE: La protection est basée sur le P&L réalisé du jour (somme des deals), pas sur la
-        variation de balance (dépôts/retraits exclus). Si la limite est atteinte, elle s'applique à TOUS les symboles.
-        Cependant, on vérifie la protection AVANT de traiter chaque symbole
-        pour permettre à tous les symboles d'être évalués dans la même itération
-        avant que la protection ne soit déclenchée.
+        Vérifie si on peut trader aujourd'hui (pas de limite de perte atteinte).
+        Si max_daily_loss est None, la protection est désactivée.
         """
+        if self.max_daily_loss is None:
+            return True, ""
+
         # Calculer la perte quotidienne (cela réinitialise aussi si nouveau jour)
         daily_loss = self.get_daily_loss()
         
@@ -1681,7 +1700,10 @@ class MT5TradingBot:
         account_info = mt5.account_info()
         currency = account_info.currency if account_info else "USD"
         loss_pct = (daily_loss / self.daily_start_balance * 100) if self.daily_start_balance and self.daily_start_balance > 0 else 0
-        self.log(f"   📊 Perte quotidienne: {daily_loss:.2f} {currency} ({loss_pct:.2f}%) | Limite: {self.max_daily_loss:.2f} {currency}")
+        if self.max_daily_loss is not None:
+            self.log(f"   📊 Perte quotidienne: {daily_loss:.2f} {currency} ({loss_pct:.2f}%) | Limite: {self.max_daily_loss:.2f} {currency}")
+        else:
+            self.log(f"   📊 P&L quotidien: {daily_loss:.2f} {currency} ({loss_pct:.2f}%)")
         
         # Récupérer les données depuis MT5
         raw_df = self.get_market_data(symbol)
@@ -1942,7 +1964,12 @@ class MT5TradingBot:
         }
         result = mt5.order_send(request)
         if result and result.retcode == mt5.TRADE_RETCODE_DONE:
-            self.log(f"   ✅ Position {ticket} fermee (Time Exit) | Profit: {result.profit:.2f}")
+            profit_str = ""
+            if result.deal:
+                deal_info = mt5.history_deals_get(ticket=result.deal)
+                if deal_info:
+                    profit_str = f" | Profit: {deal_info[0].profit:.2f}"
+            self.log(f"   ✅ Position {ticket} fermee (Time Exit){profit_str}")
             return True
         else:
             err = result.retcode if result else "no result"
@@ -2102,33 +2129,22 @@ class MT5TradingBot:
                 self.log(f"   ✅ Equity début initialisé: {self.daily_start_equity:.2f} {account_info.currency}")
             else:
                 self.log(f"   Equity début: {self.daily_start_equity:.2f} {account_info.currency}")
-            self.log(f"   Perte quotidienne: {daily_loss:.2f} {account_info.currency} ({loss_pct:.2f}%)")
-            self.log(f"   Limite: {self.max_daily_loss:.2f} {account_info.currency}")
-            if self.trading_stopped_daily:
-                self.log(f"   🛡️  Trading arrêté pour la journée (limite atteinte)")
-                remaining = 0.0
-            else:
-                # Calcul correct de la marge restante
-                # max_daily_loss = -250 (limite de perte)
-                # daily_loss = equity_actuelle - equity_début (négatif si perte, positif si gain) - FTMO utilise equity
-                # 
-                # Exemples:
-                # - daily_loss = 0 (pas de perte) : marge = 250 (limite complète disponible)
-                # - daily_loss = -100 (perte de 100) : marge = 250 - 100 = 150 (il reste 150)
-                # - daily_loss = -250 (perte de 250) : marge = 0 (limite atteinte)
-                # - daily_loss = -300 (perte de 300) : marge = 0 (limite dépassée, devrait être arrêté)
-                
-                if daily_loss >= 0:
-                    # Pas de perte (gain ou équilibre), marge complète disponible
-                    remaining = abs(self.max_daily_loss)
+            self.log(f"   P&L quotidien: {daily_loss:.2f} {account_info.currency} ({loss_pct:.2f}%)")
+            if self.max_daily_loss is not None:
+                self.log(f"   Limite: {self.max_daily_loss:.2f} {account_info.currency}")
+                if self.trading_stopped_daily:
+                    self.log(f"   🛡️  Trading arrêté pour la journée (limite atteinte)")
+                    remaining = 0.0
                 else:
-                    # On a une perte, calculer ce qui reste
-                    remaining = abs(self.max_daily_loss) - abs(daily_loss)
-                    # S'assurer que remaining n'est pas négatif
-                    if remaining < 0:
-                        remaining = 0.0
-                
-                self.log(f"   ✅ Marge restante: {remaining:.2f} {account_info.currency}")
+                    if daily_loss >= 0:
+                        remaining = abs(self.max_daily_loss)
+                    else:
+                        remaining = abs(self.max_daily_loss) - abs(daily_loss)
+                        if remaining < 0:
+                            remaining = 0.0
+                    self.log(f"   ✅ Marge restante: {remaining:.2f} {account_info.currency}")
+            else:
+                self.log(f"   Protection quotidienne: DÉSACTIVÉE")
         
         # Afficher le résumé des échecs de trades
         self.log(f"\n{self.get_failed_trades_summary()}")
@@ -2256,7 +2272,8 @@ class MT5TradingBot:
                             daily_loss = self.get_daily_loss()
                             account_info = mt5.account_info()
                             currency = account_info.currency if account_info else "USD"
-                            self.log(f"   📊 Perte quotidienne: {daily_loss:.2f} {currency} | Limite: {self.max_daily_loss:.2f} {currency}")
+                            if self.max_daily_loss is not None:
+                                self.log(f"   📊 Perte quotidienne: {daily_loss:.2f} {currency} | Limite: {self.max_daily_loss:.2f} {currency}")
                             continue
                         
                         self.process_symbol(symbol)
