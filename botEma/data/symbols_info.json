@@ -1,0 +1,32 @@
+{
+  "DJ30.": {
+    "name": "DJ30.",
+    "trade_tick_value": 0.01,
+    "trade_tick_size": 0.01,
+    "trade_contract_size": 1.0,
+    "point": 0.01,
+    "volume_min": 0.1,
+    "volume_max": 125.0,
+    "volume_step": 0.1
+  },
+  "NAS100.": {
+    "name": "NAS100.",
+    "trade_tick_value": 0.01,
+    "trade_tick_size": 0.01,
+    "trade_contract_size": 1.0,
+    "point": 0.01,
+    "volume_min": 0.1,
+    "volume_max": 125.0,
+    "volume_step": 0.1
+  },
+  "SP500.": {
+    "name": "SP500.",
+    "trade_tick_value": 0.01,
+    "trade_tick_size": 0.01,
+    "trade_contract_size": 1.0,
+    "point": 0.01,
+    "volume_min": 0.1,
+    "volume_max": 125.0,
+    "volume_step": 0.1
+  }
+}

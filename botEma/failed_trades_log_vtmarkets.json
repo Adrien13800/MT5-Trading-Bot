@@ -1,0 +1,60 @@
+{
+  "total_failed_attempts": 6,
+  "failed_trades": [
+    {
+      "timestamp": "2026-03-06T17:00:14.105536",
+      "iteration": 269,
+      "symbol": "NAS100.",
+      "trade_type": "LONG",
+      "reason": "Erreur order_send MT5",
+      "error_code": 10027,
+      "error_message": "AutoTrading disabled by client"
+    },
+    {
+      "timestamp": "2026-03-06T17:50:02.988036",
+      "iteration": 467,
+      "symbol": "SP500.",
+      "trade_type": "LONG",
+      "reason": "Erreur order_send MT5",
+      "error_code": 10027,
+      "error_message": "AutoTrading disabled by client"
+    },
+    {
+      "timestamp": "2026-03-06T18:00:06.742874",
+      "iteration": 507,
+      "symbol": "DJ30.",
+      "trade_type": "LONG",
+      "reason": "Erreur order_send MT5",
+      "error_code": 10027,
+      "error_message": "AutoTrading disabled by client"
+    },
+    {
+      "timestamp": "2026-03-26T01:45:11.086261",
+      "iteration": 54711,
+      "symbol": "DJ30.",
+      "trade_type": "LONG",
+      "reason": "Erreur order_send MT5",
+      "error_code": 10019,
+      "error_message": "No money"
+    },
+    {
+      "timestamp": "2026-03-26T05:10:10.733227",
+      "iteration": 55529,
+      "symbol": "DJ30.",
+      "trade_type": "LONG",
+      "reason": "Erreur order_send MT5",
+      "error_code": 10019,
+      "error_message": "No money"
+    },
+    {
+      "timestamp": "2026-03-26T06:10:03.543617",
+      "iteration": 55768,
+      "symbol": "DJ30.",
+      "trade_type": "SHORT",
+      "reason": "Erreur order_send MT5",
+      "error_code": 10019,
+      "error_message": "No money"
+    }
+  ],
+  "last_updated": "2026-03-26T06:10:03.545543"
+}
