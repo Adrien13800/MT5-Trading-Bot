@@ -1,0 +1,2550 @@
+================================================================================
+RAPPORT DETAILLE : A1_R5_BUS+ASIA_1atFalse
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 5% | RR defaut: 2.0
+  Sessions bloquees: ['US', 'ASIA']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 210 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 85054 (+750.5%)
+  Trades: 544 | WR: 34.4%
+  Profit Factor: 1.33
+  Gain moyen: 1607.00 | Perte moyenne: 631.52
+  Meilleur: 10453.33 | Pire: -4514.53
+  R-multiple moyen: 0.168
+  Max drawdown: 22723 (25.1%)
+  Max pertes consecutives: 26
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  EUROPE        544   34.4%     +75054   +0.168   1.33
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             201   34.3%     +35699   +0.181
+  NAS100.           164   36.0%     +31735   +0.203
+  SP500.            179   33.0%      +7620   +0.120
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi            96   43.8%     +14198   +0.390
+  Mardi           117   35.9%     +32943   +0.258
+  Mercredi         88   27.3%     -18858   -0.030
+  Jeudi           124   34.7%     +25930   +0.204
+  Vendredi        119   30.3%     +20841   +0.008
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      8     89   33.7%     +46457   +0.119
+      9     95   17.9%     -16576   -0.380 !
+     10     85   36.5%      +1978   +0.239
+     11     89   34.8%      +4138   +0.099
+     12     94   45.7%     +48959   +0.576
+     13     92   38.0%      -9901   +0.363
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     46   32.6%       -388
+   2025-08     56   23.2%      -5236
+   2025-09     51   41.2%      +5346
+   2025-10     83   26.5%      -4402
+   2025-11     58   37.9%      +2352
+   2025-12     67   25.4%      -3145
+   2026-01     63   44.4%     +11887
+   2026-02     67   38.8%     +17155
+   2026-03     53   43.4%     +51485
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    279   33.0%     +12339   +0.087
+   SHORT    265   35.8%     +62715   +0.253
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    170  100.0%    +289991        77m
+      SL    351    0.0%    -224623        43m
+    TIME     23   73.9%      +9686       210m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              201   34.3%     +35699
+  EUROPE x NAS100.            164   36.0%     +31735
+  EUROPE x SP500.             179   33.0%      +7620
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              117   35.9%     +32943
+  EUROPE x Jeudi              124   34.7%     +25930
+  EUROPE x Vendredi           119   30.3%     +20841
+  EUROPE x Lundi               96   43.8%     +14198
+  EUROPE x Mercredi            88   27.3%     -18858
+
+--- STREAKS ---
+  Max wins consecutifs: 9
+  Max losses consecutifs: 26
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      330 ############################################################
+  [-0.5, +0.0)       27 ###########################
+  [+0.0, +0.5)        6 ######
+  [+0.5, +1.0)        6 ######
+  [+1.0, +2.0)       23 #######################
+  [+2.0, +3.0)      152 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +750.5%
+  Rendement moyen:   +750.5%
+  Pire 5%:           +750.5%  (balance: 85054)
+  Meilleur 5%:       +750.5%  (balance: 85054)
+  Pire 1%:           +750.5%  (balance: 85054)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     21039 (37.7%)
+  Max DD pire 5%:    33421 (169.6%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1True_CD2_TE360_SL2.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 360 min
+  ATR SL mult: 2.0 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 64566 (+545.7%)
+  Trades: 1112 | WR: 36.2%
+  Profit Factor: 1.18
+  Gain moyen: 906.89 | Perte moyenne: 436.62
+  Meilleur: 3287.65 | Pire: -1512.94
+  R-multiple moyen: 0.122
+  Max drawdown: 18984 (25.1%)
+  Max pertes consecutives: 17
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          578   35.1%     -20647   -0.031   0.88
+  EUROPE        534   37.3%     +75213   +0.288   1.52
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             403   33.5%     +13103   +0.045
+  NAS100.           344   37.5%     +19782   +0.173
+  SP500.            365   37.8%     +21681   +0.159
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           214   43.0%     +23417   +0.282
+  Mardi           233   36.1%     +22877   +0.153
+  Mercredi        186   34.9%      -7852   +0.064
+  Jeudi           232   32.8%      +3895   +0.022
+  Vendredi        247   34.4%     +12230   +0.092
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     71   32.4%      -3797   -0.141
+      2     91   40.7%      -4491   +0.055
+      3     98   31.6%      -8989   -0.167
+      4     81   43.2%      +3396   +0.131
+      5     65   29.2%     -10849   -0.160 !
+      6     88   36.4%     +12515   +0.088
+      7     84   31.0%      -8432   -0.056
+      8     84   41.7%     +25891   +0.432
+      9     85   25.9%      -6432   -0.093 !
+     10     84   35.7%      +4199   +0.178
+     11     88   37.5%     +12100   +0.314
+     12     95   45.3%     +36425   +0.587
+     13     98   36.7%      +3031   +0.278
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     84   31.0%       -800
+   2025-08    120   35.0%      +1417
+   2025-09    116   37.1%      +3982
+   2025-10    164   36.6%      +4135
+   2025-11    119   32.8%      -2981
+   2025-12    137   34.3%       +980
+   2026-01    124   41.1%     +12420
+   2026-02    129   37.2%     +13231
+   2026-03    119   38.7%     +22183
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    574   34.7%       -237   +0.052
+   SHORT    538   37.7%     +54804   +0.197
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    360  100.0%    +352150       121m
+      SL    706    0.0%    -309087        75m
+    TIME     46   91.3%     +11504       360m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x NAS100.            163   38.7%     +27056
+  EUROPE x DJ30.              196   36.2%     +25736
+  EUROPE x SP500.             175   37.1%     +22422
+  ASIA x SP500.               190   38.4%       -740
+  ASIA x NAS100.              181   36.5%      -7274
+  ASIA x DJ30.                207   30.9%     -12633
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              118   38.1%     +26927
+  EUROPE x Lundi               93   48.4%     +20200
+  EUROPE x Vendredi           119   35.3%     +17638
+  EUROPE x Jeudi              121   34.7%     +15544
+  ASIA x Lundi                121   38.8%      +3216
+  ASIA x Mercredi             103   38.8%      -2757
+  ASIA x Mardi                115   33.9%      -4050
+  EUROPE x Mercredi            83   30.1%      -5095
+  ASIA x Vendredi             128   33.6%      -5408
+  ASIA x Jeudi                111   30.6%     -11649
+
+--- STREAKS ---
+  Max wins consecutifs: 11
+  Max losses consecutifs: 17
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      707 ############################################################
+  [-0.5, +0.0)        3 ###
+  [+0.0, +0.5)       19 ###################
+  [+0.5, +1.0)       15 ###############
+  [+1.0, +2.0)      176 ############################################################
+  [+2.0, +3.0)      192 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +545.7%
+  Rendement moyen:   +545.7%
+  Pire 5%:           +545.7%  (balance: 64566)
+  Meilleur 5%:       +545.7%  (balance: 64566)
+  Pire 1%:           +545.7%  (balance: 64566)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     15137 (34.7%)
+  Max DD pire 5%:    23916 (123.1%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1True_CD0_TE360_SL2.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 0 barres | Time exit: 360 min
+  ATR SL mult: 2.0 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 61878 (+518.8%)
+  Trades: 1187 | WR: 36.0%
+  Profit Factor: 1.16
+  Gain moyen: 878.58 | Perte moyenne: 425.36
+  Meilleur: 3285.84 | Pire: -1507.17
+  R-multiple moyen: 0.116
+  Max drawdown: 21240 (28.1%)
+  Max pertes consecutives: 19
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          614   35.7%     -15174   -0.012   0.91
+  EUROPE        573   36.3%     +67052   +0.253   1.44
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             429   33.6%     +11978   +0.046
+  NAS100.           368   37.5%     +20359   +0.172
+  SP500.            390   37.2%     +19541   +0.141
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           225   44.0%     +27905   +0.313
+  Mardi           247   36.0%     +25387   +0.151
+  Mercredi        199   34.7%      -8040   +0.063
+  Jeudi           256   32.0%       -771   -0.010
+  Vendredi        260   33.8%      +7397   +0.076
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     73   32.9%      -2879   -0.118
+      2     94   41.5%      -4204   +0.067
+      3    106   34.9%      -1681   -0.063
+      4     91   40.7%      +1321   +0.077
+      5     67   28.4%     -11377   -0.185 !
+      6     96   35.4%     +10122   +0.061
+      7     87   33.3%      -6475   +0.014
+      8     90   41.1%     +25342   +0.419
+      9    103   26.2%      -5204   -0.091 !
+     10     88   35.2%      +2358   +0.156
+     11     91   36.3%      +8804   +0.269
+     12     97   44.3%     +33385   +0.553
+     13    104   35.6%      +2367   +0.238
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     88   31.8%       -474
+   2025-08    127   33.9%       +561
+   2025-09    123   37.4%      +4013
+   2025-10    173   35.8%      +3171
+   2025-11    129   33.3%      -1884
+   2025-12    143   33.6%       -583
+   2026-01    132   43.2%     +16737
+   2026-02    139   35.3%      +8288
+   2026-03    133   38.3%     +22049
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    605   34.5%      -1616   +0.049
+   SHORT    582   37.5%     +53495   +0.186
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    383  100.0%    +362569       119m
+      SL    755    0.0%    -321961        75m
+    TIME     49   89.8%     +11270       360m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              211   35.5%     +25232
+  EUROPE x NAS100.            173   37.0%     +22134
+  EUROPE x SP500.             189   36.5%     +19687
+  ASIA x SP500.               201   37.8%       -146
+  ASIA x NAS100.              195   37.9%      -1775
+  ASIA x DJ30.                218   31.7%     -13254
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              123   38.2%     +26995
+  EUROPE x Lundi              100   48.0%     +21587
+  EUROPE x Vendredi           126   34.9%     +15862
+  EUROPE x Jeudi              132   31.8%      +8630
+  ASIA x Lundi                125   40.8%      +6318
+  ASIA x Mardi                124   33.9%      -1608
+  ASIA x Mercredi             107   39.3%      -2018
+  EUROPE x Mercredi            92   29.3%      -6021
+  ASIA x Vendredi             134   32.8%      -8465
+  ASIA x Jeudi                124   32.3%      -9401
+
+--- STREAKS ---
+  Max wins consecutifs: 11
+  Max losses consecutifs: 19
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      757 ############################################################
+  [-0.5, +0.0)        3 ###
+  [+0.0, +0.5)       20 ####################
+  [+0.5, +1.0)       15 ###############
+  [+1.0, +2.0)      193 ############################################################
+  [+2.0, +3.0)      199 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +518.8%
+  Rendement moyen:   +518.8%
+  Pire 5%:           +518.8%  (balance: 61878)
+  Meilleur 5%:       +518.8%  (balance: 61878)
+  Pire 1%:           +518.8%  (balance: 61878)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     15514 (36.4%)
+  Max DD pire 5%:    24251 (126.7%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1True_CD4_TE360_SL2.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 4 barres | Time exit: 360 min
+  ATR SL mult: 2.0 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 58155 (+481.5%)
+  Trades: 1060 | WR: 36.2%
+  Profit Factor: 1.16
+  Gain moyen: 904.14 | Perte moyenne: 442.36
+  Meilleur: 3366.24 | Pire: -1547.07
+  R-multiple moyen: 0.120
+  Max drawdown: 19243 (24.9%)
+  Max pertes consecutives: 16
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          560   35.2%     -19339   -0.033   0.88
+  EUROPE        500   37.4%     +67494   +0.292   1.49
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             383   33.4%      +9533   +0.039
+  NAS100.           336   37.5%     +20255   +0.169
+  SP500.            341   38.1%     +18367   +0.163
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           206   42.7%     +20031   +0.267
+  Mardi           220   36.4%     +24462   +0.158
+  Mercredi        181   35.9%      -5783   +0.093
+  Jeudi           219   31.5%      -6675   -0.026
+  Vendredi        234   35.0%     +16121   +0.114
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     71   32.4%      -3505   -0.141
+      2     90   41.1%      -3676   +0.065
+      3     92   31.5%      -7565   -0.177
+      4     79   44.3%      +3802   +0.158
+      5     63   27.0%     -11813   -0.226 !
+      6     86   36.0%     +10743   +0.076
+      7     79   31.6%      -7326   -0.036
+      8     78   39.7%     +17586   +0.368
+      9     78   25.6%      -6159   -0.103 !
+     10     77   35.1%      +2314   +0.147
+     11     83   38.6%     +13101   +0.350
+     12     91   45.1%     +35260   +0.579
+     13     93   38.7%      +5392   +0.343
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     79   32.9%       +191
+   2025-08    118   35.6%      +2036
+   2025-09    107   36.4%      +3311
+   2025-10    155   36.1%      +2954
+   2025-11    116   31.9%      -3929
+   2025-12    133   35.3%      +2130
+   2026-01    119   42.0%     +13568
+   2026-02    119   37.0%     +11382
+   2026-03    114   37.7%     +16511
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    547   34.9%      +2848   +0.055
+   SHORT    513   37.6%     +45307   +0.190
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    342  100.0%    +334727       120m
+      SL    672    0.0%    -298101        75m
+    TIME     46   91.3%     +11529       360m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x NAS100.            156   38.5%     +24314
+  EUROPE x DJ30.              184   35.9%     +22025
+  EUROPE x SP500.             160   38.1%     +21155
+  ASIA x SP500.               181   38.1%      -2788
+  ASIA x NAS100.              180   36.7%      -4059
+  ASIA x DJ30.                199   31.2%     -12492
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              111   37.8%     +24738
+  EUROPE x Vendredi           111   37.8%     +22359
+  EUROPE x Lundi               87   48.3%     +18884
+  EUROPE x Jeudi              112   32.1%      +4697
+  ASIA x Lundi                119   38.7%      +1147
+  ASIA x Mardi                109   34.9%       -277
+  ASIA x Mercredi             102   39.2%      -2600
+  EUROPE x Mercredi            79   31.6%      -3184
+  ASIA x Vendredi             123   32.5%      -6238
+  ASIA x Jeudi                107   30.8%     -11372
+
+--- STREAKS ---
+  Max wins consecutifs: 11
+  Max losses consecutifs: 16
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      672 ############################################################
+  [-0.5, +0.0)        4 ####
+  [+0.0, +0.5)       19 ###################
+  [+0.5, +1.0)       15 ###############
+  [+1.0, +2.0)      170 ############################################################
+  [+2.0, +3.0)      180 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +481.5%
+  Rendement moyen:   +481.5%
+  Pire 5%:           +481.5%  (balance: 58155)
+  Meilleur 5%:       +481.5%  (balance: 58155)
+  Pire 1%:           +481.5%  (balance: 58155)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     15294 (37.4%)
+  Max DD pire 5%:    24401 (127.2%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1False_CD2_TE0_SL1.5
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: False (bars=2)
+  Cooldown: 2 barres | Time exit: 0 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 57519 (+475.2%)
+  Trades: 1695 | WR: 33.6%
+  Profit Factor: 1.10
+  Gain moyen: 953.89 | Perte moyenne: 441.06
+  Meilleur: 3520.27 | Pire: -1504.46
+  R-multiple moyen: 0.088
+  Max drawdown: 29658 (39.2%)
+  Max pertes consecutives: 29
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          870   34.5%     -10000   +0.031   0.96
+  EUROPE        825   32.7%     +57519   +0.148   1.24
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             617   30.5%      -7578   -0.010
+  NAS100.           525   36.2%     +37235   +0.166
+  SP500.            553   34.7%     +17862   +0.122
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           315   40.0%     +38489   +0.308
+  Mardi           356   32.0%     +11758   +0.034
+  Mercredi        312   31.1%     -12459   -0.009
+  Jeudi           360   32.2%      +2844   +0.047
+  Vendredi        352   33.2%      +6886   +0.073
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1    121   34.7%      -3645   +0.028
+      2    119   42.0%      +7673   +0.265
+      3    146   34.2%       -458   +0.028
+      4    119   34.5%      -3536   +0.014
+      5     99   31.3%      -8353   -0.051
+      6    130   33.1%      +2450   -0.032
+      7    136   31.6%      -4131   -0.035
+      8    128   30.5%     +12474   +0.062
+      9    150   24.7%      -5116   -0.129 !
+     10    165   31.5%       +992   +0.101
+     11    136   32.4%      +6171   +0.138
+     12    116   43.1%     +30125   +0.522
+     13    130   36.9%     +12874   +0.288
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07    122   32.8%      +1047
+   2025-08    186   34.4%      +3296
+   2025-09    196   31.1%      -1634
+   2025-10    232   34.9%      +5288
+   2025-11    178   29.8%      -3608
+   2025-12    220   32.3%       +410
+   2026-01    186   39.2%     +17803
+   2026-02    201   32.8%      +4524
+   2026-03    174   35.1%     +20393
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    873   32.8%     +14630   +0.059
+   SHORT    822   34.5%     +32889   +0.118
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    570  100.0%    +543717       102m
+      SL   1125    0.0%    -496198        58m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x NAS100.            242   35.1%     +30404
+  EUROPE x SP500.             279   32.6%     +14275
+  EUROPE x DJ30.              304   30.9%     +12840
+  ASIA x NAS100.              283   37.1%      +6831
+  ASIA x SP500.               274   36.9%      +3587
+  ASIA x DJ30.                313   30.0%     -20418
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Lundi              156   43.6%     +29792
+  EUROPE x Mardi              178   29.8%     +17848
+  EUROPE x Vendredi           162   32.7%     +14360
+  ASIA x Lundi                159   36.5%      +8697
+  EUROPE x Jeudi              179   30.7%      +6123
+  ASIA x Mercredi             162   34.6%      -1854
+  ASIA x Jeudi                181   33.7%      -3279
+  ASIA x Mardi                178   34.3%      -6090
+  ASIA x Vendredi             190   33.7%      -7474
+  EUROPE x Mercredi           150   27.3%     -10605
+
+--- STREAKS ---
+  Max wins consecutifs: 8
+  Max losses consecutifs: 29
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)     1110 ############################################################
+  [-0.5, +0.0)       15 ###############
+  [+0.5, +1.0)        4 ####
+  [+1.0, +2.0)      309 ############################################################
+  [+2.0, +3.0)      257 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +475.2%
+  Rendement moyen:   +475.2%
+  Pire 5%:           +475.2%  (balance: 57519)
+  Meilleur 5%:       +475.2%  (balance: 57519)
+  Pire 1%:           +475.2%  (balance: 57519)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     21994 (51.0%)
+  Max DD pire 5%:    34535 (174.5%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1False_CD2_TE360_SL1.5
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: False (bars=2)
+  Cooldown: 2 barres | Time exit: 360 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 57443 (+474.4%)
+  Trades: 1694 | WR: 34.2%
+  Profit Factor: 1.10
+  Gain moyen: 935.73 | Perte moyenne: 443.36
+  Meilleur: 3520.27 | Pire: -1504.46
+  R-multiple moyen: 0.088
+  Max drawdown: 31220 (41.3%)
+  Max pertes consecutives: 29
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          869   35.3%     -10465   +0.027   0.96
+  EUROPE        825   33.0%     +57908   +0.152   1.24
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             617   30.8%      -7544   -0.009
+  NAS100.           524   36.5%     +36425   +0.161
+  SP500.            553   35.8%     +18563   +0.127
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           315   41.0%     +34415   +0.289
+  Mardi           356   32.0%     +11516   +0.037
+  Mercredi        312   31.7%     -11759   -0.003
+  Jeudi           360   33.3%      +6641   +0.060
+  Vendredi        351   33.3%      +6630   +0.069
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1    121   38.0%      -2559   +0.019
+      2    119   41.2%      +3539   +0.198
+      3    146   35.6%       +799   +0.046
+      4    119   34.5%      -3749   +0.005
+      5     99   33.3%      -6541   -0.012
+      6    130   33.1%      +2031   -0.034
+      7    135   31.9%      -3985   -0.028
+      8    128   30.5%     +11769   +0.064
+      9    150   24.0%      -6059   -0.146 !
+     10    165   32.7%      +2373   +0.123
+     11    136   33.1%      +6610   +0.151
+     12    116   43.1%     +30338   +0.523
+     13    130   36.9%     +12878   +0.288
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07    122   33.6%      +1414
+   2025-08    186   34.9%      +4107
+   2025-09    196   31.1%      -1908
+   2025-10    232   35.3%      +3400
+   2025-11    178   32.0%      -1926
+   2025-12    219   32.4%       -635
+   2026-01    186   39.8%     +17697
+   2026-02    201   33.3%      +5657
+   2026-03    174   35.1%     +19637
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    872   33.6%     +13191   +0.060
+   SHORT    822   34.8%     +34252   +0.117
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    556  100.0%    +535916        86m
+      SL   1107    0.0%    -493223        50m
+    TIME     31   74.2%      +4751       360m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x NAS100.            242   35.1%     +30315
+  EUROPE x SP500.             279   33.0%     +14946
+  EUROPE x DJ30.              304   31.2%     +12648
+  ASIA x NAS100.              282   37.6%      +6110
+  ASIA x SP500.               274   38.7%      +3617
+  ASIA x DJ30.                313   30.4%     -20192
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Lundi              156   44.9%     +30939
+  EUROPE x Mardi              178   29.8%     +17749
+  EUROPE x Vendredi           162   32.7%     +14642
+  EUROPE x Jeudi              179   30.7%      +5837
+  ASIA x Lundi                159   37.1%      +3475
+  ASIA x Jeudi                181   35.9%       +804
+  ASIA x Mercredi             162   35.8%       -500
+  ASIA x Mardi                178   34.3%      -6233
+  ASIA x Vendredi             189   33.9%      -8012
+  EUROPE x Mercredi           150   27.3%     -11260
+
+--- STREAKS ---
+  Max wins consecutifs: 8
+  Max losses consecutifs: 29
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)     1092 ############################################################
+  [-0.5, +0.0)       23 #######################
+  [+0.0, +0.5)       10 ##########
+  [+0.5, +1.0)       17 #################
+  [+1.0, +2.0)      294 ############################################################
+  [+2.0, +3.0)      258 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +474.4%
+  Rendement moyen:   +474.4%
+  Pire 5%:           +474.4%  (balance: 57443)
+  Meilleur 5%:       +474.4%  (balance: 57443)
+  Pire 1%:           +474.4%  (balance: 57443)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     22082 (50.0%)
+  Max DD pire 5%:    34454 (177.0%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1True_CD0_TE210_SL2.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 0 barres | Time exit: 210 min
+  ATR SL mult: 2.0 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 46394 (+363.9%)
+  Trades: 1187 | WR: 37.4%
+  Profit Factor: 1.14
+  Gain moyen: 679.37 | Perte moyenne: 356.99
+  Meilleur: 2439.26 | Pire: -1084.41
+  R-multiple moyen: 0.102
+  Max drawdown: 19145 (35.3%)
+  Max pertes consecutives: 17
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          614   37.0%     -10402   -0.008   0.92
+  EUROPE        573   37.9%     +46796   +0.221   1.37
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             429   34.5%      +5526   +0.030
+  NAS100.           368   39.7%     +16544   +0.159
+  SP500.            390   38.5%     +14324   +0.129
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           225   42.7%     +15946   +0.231
+  Mardi           247   37.7%     +15844   +0.122
+  Mercredi        199   37.2%      -2063   +0.082
+  Jeudi           256   33.2%      -1542   -0.012
+  Vendredi        260   36.9%      +8210   +0.100
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     73   32.9%      -3057   -0.140
+      2     94   41.5%      -1523   +0.085
+      3    106   39.6%       -429   -0.014
+      4     91   39.6%       -294   +0.024
+      5     67   29.9%      -8851   -0.198 !
+      6     96   36.5%      +7719   +0.061
+      7     87   35.6%      -3967   +0.045
+      8     90   41.1%     +19612   +0.425
+      9    103   27.2%      -5453   -0.114 !
+     10     88   43.2%      +5451   +0.259
+     11     91   37.4%       +220   +0.049
+     12     97   44.3%     +23686   +0.513
+     13    104   35.6%      +3280   +0.222
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     88   34.1%       -861
+   2025-08    127   34.6%       +259
+   2025-09    123   39.8%      +2880
+   2025-10    173   37.6%      +1964
+   2025-11    129   38.0%       +668
+   2025-12    143   33.6%       -920
+   2026-01    132   43.9%     +14093
+   2026-02    139   34.5%      +3349
+   2026-03    133   39.8%     +14963
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    605   37.0%      -2539   +0.040
+   SHORT    582   37.8%     +38933   +0.168
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    331  100.0%    +268027        95m
+      SL    712    0.0%    -261500        63m
+    TIME    144   78.5%     +29867       210m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x NAS100.            173   39.9%     +16991
+  EUROPE x DJ30.              211   36.5%     +16612
+  EUROPE x SP500.             189   37.6%     +13194
+  ASIA x SP500.               201   39.3%      +1130
+  ASIA x NAS100.              195   39.5%       -447
+  ASIA x DJ30.                218   32.6%     -11085
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              123   39.0%     +17344
+  EUROPE x Lundi              100   48.0%     +14923
+  EUROPE x Vendredi           126   38.1%     +12840
+  EUROPE x Jeudi              132   33.3%      +5644
+  ASIA x Mercredi             107   42.1%      +1891
+  ASIA x Lundi                125   38.4%      +1023
+  ASIA x Mardi                124   36.3%      -1500
+  EUROPE x Mercredi            92   31.5%      -3955
+  ASIA x Vendredi             134   35.8%      -4630
+  ASIA x Jeudi                124   33.1%      -7186
+
+--- STREAKS ---
+  Max wins consecutifs: 11
+  Max losses consecutifs: 17
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      717 ############################################################
+  [-0.5, +0.0)       25 #########################
+  [+0.0, +0.5)       32 ################################
+  [+0.5, +1.0)       41 #########################################
+  [+1.0, +2.0)      199 ############################################################
+  [+2.0, +3.0)      173 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +363.9%
+  Rendement moyen:   +363.9%
+  Pire 5%:           +363.9%  (balance: 46394)
+  Meilleur 5%:       +363.9%  (balance: 46394)
+  Pire 1%:           +363.9%  (balance: 46394)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     12958 (38.4%)
+  Max DD pire 5%:    20197 (112.9%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1True_CD2_TE0_SL2.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 0 min
+  ATR SL mult: 2.0 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 46353 (+363.5%)
+  Trades: 1110 | WR: 34.1%
+  Profit Factor: 1.15
+  Gain moyen: 727.88 | Perte moyenne: 326.21
+  Meilleur: 2370.78 | Pire: -1090.64
+  R-multiple moyen: 0.109
+  Max drawdown: 14250 (26.1%)
+  Max pertes consecutives: 17
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          578   31.7%     -17129   -0.049   0.87
+  EUROPE        532   36.7%     +53482   +0.281   1.50
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             402   31.6%      +7931   +0.036
+  NAS100.           344   35.8%     +14236   +0.160
+  SP500.            364   35.2%     +14186   +0.141
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           214   40.7%     +21968   +0.318
+  Mardi           231   34.6%     +13986   +0.134
+  Mercredi        186   32.3%      -7719   +0.034
+  Jeudi           232   29.7%       -222   -0.018
+  Vendredi        247   33.2%      +8340   +0.080
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     71   26.8%      -4526   -0.196 !
+      2     91   38.5%       +349   +0.154
+      3     98   26.5%      -8587   -0.202 !
+      4     81   34.6%       +735   +0.037
+      5     65   26.2%      -8526   -0.215 !
+      6     88   36.4%      +9497   +0.087
+      7     84   31.0%      -6070   -0.064
+      8     84   41.7%     +19385   +0.453
+      9     85   25.9%      -4549   -0.088 !
+     10     84   32.1%      +1838   +0.124
+     11     88   37.5%      +8449   +0.312
+     12     93   45.2%     +26069   +0.580
+     13     98   36.7%      +2291   +0.276
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     84   28.6%      -1313
+   2025-08    120   34.2%      +1196
+   2025-09    116   35.3%      +3117
+   2025-10    162   33.3%      +1553
+   2025-11    119   27.7%      -3679
+   2025-12    137   32.1%       +475
+   2026-01    124   37.9%      +6919
+   2026-02    129   37.2%     +10305
+   2026-03    119   38.7%     +17780
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    572   31.5%      -3841   +0.025
+   SHORT    538   36.8%     +40194   +0.199
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    378  100.0%    +275139       141m
+      SL    732    0.0%    -238786        94m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              195   36.4%     +19252
+  EUROPE x NAS100.            163   37.4%     +17954
+  EUROPE x SP500.             174   36.2%     +16276
+  ASIA x SP500.               190   34.2%      -2090
+  ASIA x NAS100.              181   34.3%      -3718
+  ASIA x DJ30.                207   27.1%     -11320
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              116   37.9%     +18000
+  EUROPE x Lundi               93   46.2%     +14966
+  EUROPE x Vendredi           119   35.3%     +12709
+  EUROPE x Jeudi              121   33.9%     +10885
+  ASIA x Lundi                121   36.4%      +7002
+  EUROPE x Mercredi            83   30.1%      -3079
+  ASIA x Mardi                115   31.3%      -4014
+  ASIA x Vendredi             128   31.2%      -4369
+  ASIA x Mercredi             103   34.0%      -4640
+  ASIA x Jeudi                111   25.2%     -11107
+
+--- STREAKS ---
+  Max wins consecutifs: 11
+  Max losses consecutifs: 17
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      732 ############################################################
+  [+1.0, +2.0)      184 ############################################################
+  [+2.0, +3.0)      194 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +363.5%
+  Rendement moyen:   +363.5%
+  Pire 5%:           +363.5%  (balance: 46353)
+  Meilleur 5%:       +363.5%  (balance: 46353)
+  Pire 1%:           +363.5%  (balance: 46353)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     11705 (35.1%)
+  Max DD pire 5%:    18551 (102.8%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A2_EU3.0_AS3.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 3.0, 'ASIA': 3.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 210 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 44428 (+344.3%)
+  Trades: 1113 | WR: 31.3%
+  Profit Factor: 1.14
+  Gain moyen: 825.39 | Perte moyenne: 330.47
+  Meilleur: 3111.81 | Pire: -1123.20
+  R-multiple moyen: 0.114
+  Max drawdown: 18240 (32.4%)
+  Max pertes consecutives: 27
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          580   30.2%     -12293   +0.012   0.91
+  EUROPE        533   32.5%     +46721   +0.225   1.40
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             405   29.1%      +8067   +0.033
+  NAS100.           344   32.6%     +11855   +0.178
+  SP500.            364   32.4%     +14506   +0.143
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           211   37.4%     +22696   +0.284
+  Mardi           230   30.4%      +7917   +0.112
+  Mercredi        190   30.0%      -7176   +0.069
+  Jeudi           235   31.9%     +11877   +0.148
+  Vendredi        247   27.1%       -886   -0.027
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     68   27.9%       +145   -0.103 !
+      2     91   38.5%       -254   +0.239
+      3     97   27.8%      -7392   -0.160 !
+      4     81   32.1%      -4835   -0.029
+      5     65   26.2%      -6937   -0.063 !
+      6     94   28.7%      +8259   +0.075 !
+      7     84   28.6%      -1281   +0.087 !
+      8     82   32.9%     +17174   +0.293
+      9     92   16.3%      -6958   -0.379 !
+     10     84   36.9%      +5947   +0.324
+     11     89   33.7%      +3669   +0.142
+     12     94   40.4%     +22322   +0.603
+     13     92   34.8%      +4567   +0.372
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     86   27.9%       -468
+   2025-08    116   27.6%         -1
+   2025-09    115   29.6%       +893
+   2025-10    166   31.3%       +716
+   2025-11    121   33.9%        +32
+   2025-12    135   28.1%       -590
+   2026-01    124   40.3%     +18506
+   2026-02    129   28.7%      +1439
+   2026-03    121   33.1%     +13901
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    580   30.3%      -4422   +0.020
+   SHORT    533   32.3%     +38850   +0.216
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    266  100.0%    +261737        93m
+      SL    745    0.0%    -250074        49m
+    TIME    102   80.4%     +22765       210m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              194   32.0%     +20023
+  EUROPE x NAS100.            164   34.8%     +17059
+  EUROPE x SP500.             175   30.9%      +9639
+  ASIA x SP500.               189   33.9%      +4866
+  ASIA x NAS100.              180   30.6%      -5204
+  ASIA x DJ30.                211   26.5%     -11956
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              116   33.6%     +15261
+  EUROPE x Lundi               92   43.5%     +13943
+  EUROPE x Jeudi              122   32.8%     +12297
+  EUROPE x Vendredi           118   28.0%     +10270
+  ASIA x Lundi                119   32.8%      +8753
+  ASIA x Jeudi                113   31.0%       -420
+  ASIA x Mercredi             105   34.3%      -2126
+  EUROPE x Mercredi            85   24.7%      -5050
+  ASIA x Mardi                114   27.2%      -7344
+  ASIA x Vendredi             129   26.4%     -11156
+
+--- STREAKS ---
+  Max wins consecutifs: 8
+  Max losses consecutifs: 27
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      747 ############################################################
+  [-0.5, +0.0)       17 #################
+  [+0.0, +0.5)       22 ######################
+  [+0.5, +1.0)       26 ##########################
+  [+1.0, +2.0)       28 ############################
+  [+2.0, +3.0)      273 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +344.3%
+  Rendement moyen:   +344.3%
+  Pire 5%:           +344.3%  (balance: 44428)
+  Meilleur 5%:       +344.3%  (balance: 44428)
+  Pire 1%:           +344.3%  (balance: 44428)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     14443 (42.8%)
+  Max DD pire 5%:    22902 (126.3%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1True_CD0_TE0_SL2.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 0 barres | Time exit: 0 min
+  ATR SL mult: 2.0 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 44348 (+343.5%)
+  Trades: 1187 | WR: 34.0%
+  Profit Factor: 1.14
+  Gain moyen: 705.73 | Perte moyenne: 318.95
+  Meilleur: 2367.51 | Pire: -1088.56
+  R-multiple moyen: 0.104
+  Max drawdown: 15878 (29.2%)
+  Max pertes consecutives: 18
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          614   32.2%     -13795   -0.032   0.90
+  EUROPE        573   35.8%     +48143   +0.250   1.42
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             429   31.5%      +6197   +0.031
+  NAS100.           368   35.9%     +14702   +0.159
+  SP500.            390   34.9%     +13449   +0.132
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           225   41.8%     +25095   +0.351
+  Mardi           247   34.8%     +16458   +0.140
+  Mercredi        199   32.2%      -8059   +0.032
+  Jeudi           256   28.9%      -4182   -0.052
+  Vendredi        260   32.7%      +5037   +0.065
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     73   27.4%      -4364   -0.178 !
+      2     94   38.3%       +249   +0.149
+      3    106   30.2%      -2934   -0.094
+      4     91   33.0%       -866   -0.011
+      5     67   25.4%      -8905   -0.238 !
+      6     96   35.4%      +7798   +0.060
+      7     87   33.3%      -4773   +0.005
+      8     90   41.1%     +18533   +0.434
+      9    103   26.2%      -3706   -0.083 !
+     10     88   31.8%       +945   +0.112
+     11     91   36.3%      +6144   +0.268
+     12     97   44.3%     +24380   +0.550
+     13    104   35.6%      +1847   +0.239
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     88   29.5%       -992
+   2025-08    127   33.1%       +389
+   2025-09    123   35.8%      +3266
+   2025-10    173   32.9%      +1094
+   2025-11    129   28.7%      -2728
+   2025-12    143   30.8%       -910
+   2026-01    132   40.2%      +9789
+   2026-02    139   35.3%      +6997
+   2026-03    133   38.3%     +17443
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    605   31.6%      -4577   +0.027
+   SHORT    582   36.4%     +38925   +0.184
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    403  100.0%    +284407       139m
+      SL    784    0.0%    -250059        95m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              211   35.5%     +18232
+  EUROPE x SP500.             189   36.0%     +15238
+  EUROPE x NAS100.            173   35.8%     +14673
+  ASIA x NAS100.              195   35.9%        +29
+  ASIA x SP500.               201   33.8%      -1789
+  ASIA x DJ30.                218   27.5%     -12035
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              123   38.2%     +18511
+  EUROPE x Lundi              100   46.0%     +16539
+  EUROPE x Vendredi           126   34.9%     +11429
+  ASIA x Lundi                125   38.4%      +8556
+  EUROPE x Jeudi              132   31.1%      +5763
+  ASIA x Mardi                124   31.5%      -2054
+  ASIA x Mercredi             107   34.6%      -3960
+  EUROPE x Mercredi            92   29.3%      -4100
+  ASIA x Vendredi             134   30.6%      -6392
+  ASIA x Jeudi                124   26.6%      -9945
+
+--- STREAKS ---
+  Max wins consecutifs: 11
+  Max losses consecutifs: 18
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      784 ############################################################
+  [+1.0, +2.0)      199 ############################################################
+  [+2.0, +3.0)      204 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +343.5%
+  Rendement moyen:   +343.5%
+  Pire 5%:           +343.5%  (balance: 44348)
+  Meilleur 5%:       +343.5%  (balance: 44348)
+  Pire 1%:           +343.5%  (balance: 44348)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     12071 (37.2%)
+  Max DD pire 5%:    18894 (107.7%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1True_CD4_TE0_SL2.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 4 barres | Time exit: 0 min
+  ATR SL mult: 2.0 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 42952 (+329.5%)
+  Trades: 1057 | WR: 34.1%
+  Profit Factor: 1.14
+  Gain moyen: 746.01 | Perte moyenne: 338.03
+  Meilleur: 2523.59 | Pire: -1160.16
+  R-multiple moyen: 0.108
+  Max drawdown: 15065 (26.0%)
+  Max pertes consecutives: 17
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          560   31.6%     -16043   -0.050   0.88
+  EUROPE        497   36.8%     +48995   +0.287   1.47
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             382   31.4%      +5946   +0.029
+  NAS100.           336   35.7%     +14638   +0.157
+  SP500.            339   35.4%     +12368   +0.149
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           206   40.3%     +19715   +0.304
+  Mardi           217   35.0%     +16247   +0.145
+  Mercredi        181   33.1%      -6366   +0.063
+  Jeudi           219   28.3%      -8204   -0.069
+  Vendredi        234   33.8%     +11561   +0.102
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     71   26.8%      -4336   -0.196 !
+      2     90   38.9%      +1178   +0.167
+      3     92   26.1%      -7491   -0.213 !
+      4     79   35.4%      +1067   +0.063
+      5     63   23.8%      -9757   -0.284 !
+      6     86   36.0%      +8392   +0.077
+      7     79   31.6%      -5096   -0.042
+      8     78   39.7%     +13360   +0.383
+      9     78   25.6%      -4531   -0.096 !
+     10     76   31.6%       +678   +0.106
+     11     83   38.6%      +9449   +0.349
+     12     89   44.9%     +25986   +0.572
+     13     93   38.7%      +4053   +0.345
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     79   30.4%       -384
+   2025-08    118   34.7%      +1790
+   2025-09    107   34.6%      +2531
+   2025-10    153   32.7%       +538
+   2025-11    116   26.7%      -4333
+   2025-12    133   33.1%      +1294
+   2026-01    118   39.0%      +8235
+   2026-02    119   37.0%      +9562
+   2026-03    114   37.7%     +13719
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    545   31.6%      -1353   +0.027
+   SHORT    512   36.7%     +34305   +0.194
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    360  100.0%    +268562       142m
+      SL    697    0.0%    -235610        96m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              183   36.1%     +17224
+  EUROPE x NAS100.            156   37.2%     +16095
+  EUROPE x SP500.             158   37.3%     +15676
+  ASIA x NAS100.              180   34.4%      -1457
+  ASIA x SP500.               181   33.7%      -3308
+  ASIA x DJ30.                199   27.1%     -11278
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              108   38.0%     +17215
+  EUROPE x Vendredi           111   37.8%     +16779
+  EUROPE x Lundi               87   46.0%     +13959
+  ASIA x Lundi                119   36.1%      +5756
+  EUROPE x Jeudi              112   31.2%      +2815
+  ASIA x Mardi                109   32.1%       -968
+  EUROPE x Mercredi            79   31.6%      -1773
+  ASIA x Mercredi             102   34.3%      -4593
+  ASIA x Vendredi             123   30.1%      -5218
+  ASIA x Jeudi                107   25.2%     -11019
+
+--- STREAKS ---
+  Max wins consecutifs: 11
+  Max losses consecutifs: 17
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      697 ############################################################
+  [+1.0, +2.0)      178 ############################################################
+  [+2.0, +3.0)      182 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +329.5%
+  Rendement moyen:   +329.5%
+  Pire 5%:           +329.5%  (balance: 42952)
+  Meilleur 5%:       +329.5%  (balance: 42952)
+  Pire 1%:           +329.5%  (balance: 42952)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     12237 (38.3%)
+  Max DD pire 5%:    19324 (108.6%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A2_EU3.0_AS1.5
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 3.0, 'ASIA': 1.5}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 210 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 41621 (+316.2%)
+  Trades: 1125 | WR: 36.6%
+  Profit Factor: 1.14
+  Gain moyen: 614.06 | Perte moyenne: 310.48
+  Meilleur: 2757.10 | Pire: -1003.47
+  R-multiple moyen: 0.100
+  Max drawdown: 15940 (31.7%)
+  Max pertes consecutives: 23
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          586   40.6%     -10691   -0.007   0.90
+  EUROPE        539   32.3%     +42312   +0.217   1.38
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             410   34.4%      +9874   +0.060
+  NAS100.           346   38.2%     +13689   +0.142
+  SP500.            369   37.7%      +8058   +0.106
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           214   43.5%     +16059   +0.271
+  Mardi           233   36.9%     +13437   +0.140
+  Mercredi        193   35.2%      -7355   +0.019
+  Jeudi           237   35.9%     +10557   +0.111
+  Vendredi        248   32.3%      -1077   -0.031
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     68   39.7%      +1040   -0.050
+      2     91   46.2%      +2103   +0.140
+      3    100   34.0%      -9572   -0.186
+      4     84   41.7%      -2879   +0.030
+      5     65   35.4%      -5527   -0.137
+      6     94   43.6%      +4861   +0.057
+      7     84   42.9%       -718   +0.076
+      8     84   32.1%     +16836   +0.264
+      9     95   16.8%      -7912   -0.366 !
+     10     85   36.5%      +5177   +0.309
+     11     89   33.7%      +2497   +0.142
+     12     94   40.4%     +22583   +0.603
+     13     92   34.8%      +3131   +0.368
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     87   32.2%      -1112
+   2025-08    120   35.8%       -322
+   2025-09    116   37.9%      +2577
+   2025-10    168   36.9%       +342
+   2025-11    121   35.5%       -547
+   2025-12    135   31.9%      -1137
+   2026-01    124   42.7%     +10487
+   2026-02    133   38.3%     +11139
+   2026-03    121   37.2%     +10195
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    580   35.9%      +2186   +0.041
+   SHORT    545   37.4%     +29435   +0.164
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    372  100.0%    +242765        67m
+      SL    700    0.0%    -220085        44m
+    TIME     53   75.5%      +8941       210m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              198   31.3%     +18039
+  EUROPE x NAS100.            164   34.8%     +15972
+  EUROPE x SP500.             177   31.1%      +8301
+  ASIA x SP500.               192   43.8%       -243
+  ASIA x NAS100.              182   41.2%      -2283
+  ASIA x DJ30.                212   37.3%      -8165
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              116   33.6%     +15306
+  EUROPE x Lundi               94   43.6%     +12880
+  EUROPE x Jeudi              122   32.8%     +11677
+  EUROPE x Vendredi           119   27.7%      +7745
+  ASIA x Lundi                120   43.3%      +3179
+  ASIA x Jeudi                115   39.1%      -1121
+  ASIA x Mardi                117   40.2%      -1870
+  ASIA x Mercredi             105   44.8%      -2059
+  EUROPE x Mercredi            88   23.9%      -5297
+  ASIA x Vendredi             129   36.4%      -8821
+
+--- STREAKS ---
+  Max wins consecutifs: 8
+  Max losses consecutifs: 23
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      701 ############################################################
+  [-0.5, +0.0)       12 ############
+  [+0.0, +0.5)       12 ############
+  [+0.5, +1.0)       19 ###################
+  [+1.0, +2.0)      228 ############################################################
+  [+2.0, +3.0)      153 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +316.2%
+  Rendement moyen:   +316.2%
+  Pire 5%:           +316.2%  (balance: 41621)
+  Meilleur 5%:       +316.2%  (balance: 41621)
+  Pire 1%:           +316.2%  (balance: 41621)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     11865 (38.2%)
+  Max DD pire 5%:    18689 (109.4%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A2_EU3.0_AS2.5
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 3.0, 'ASIA': 2.5}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 210 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 40413 (+304.1%)
+  Trades: 1115 | WR: 32.3%
+  Profit Factor: 1.14
+  Gain moyen: 689.70 | Perte moyenne: 288.58
+  Meilleur: 2821.59 | Pire: -1024.80
+  R-multiple moyen: 0.107
+  Max drawdown: 16875 (32.9%)
+  Max pertes consecutives: 27
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          581   32.2%     -11418   -0.001   0.90
+  EUROPE        534   32.4%     +41831   +0.224   1.41
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             406   29.8%      +5547   +0.029
+  NAS100.           345   34.2%     +12645   +0.180
+  SP500.            364   33.2%     +12221   +0.124
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           211   37.4%     +17431   +0.243
+  Mardi           231   32.0%      +7920   +0.115
+  Mercredi        190   30.0%      -8881   +0.018
+  Jeudi           235   33.2%     +10710   +0.148
+  Vendredi        248   29.0%      +3233   +0.010
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     68   29.4%       +340   -0.128 !
+      2     91   40.7%       +661   +0.242
+      3     98   30.6%      -6745   -0.135
+      4     81   33.3%      -4165   -0.046
+      5     65   26.2%      -7802   -0.152 !
+      6     94   30.9%      +5706   +0.033
+      7     84   32.1%       +587   +0.119
+      8     82   32.9%     +16883   +0.301
+      9     92   16.3%      -5896   -0.380 !
+     10     85   36.5%      +4237   +0.309
+     11     89   33.7%      +3368   +0.142
+     12     94   40.4%     +20273   +0.604
+     13     92   34.8%      +2966   +0.369
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     86   27.9%      -1162
+   2025-08    116   27.6%      -1348
+   2025-09    115   31.3%      +1046
+   2025-10    166   31.9%         -3
+   2025-11    121   33.9%       +515
+   2025-12    135   29.6%       -160
+   2026-01    124   41.9%     +15625
+   2026-02    131   31.3%      +4955
+   2026-03    121   33.9%     +10944
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    580   31.4%       +269   +0.025
+   SHORT    535   33.3%     +30144   +0.195
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    289  100.0%    +230531        86m
+      SL    736    0.0%    -215756        48m
+    TIME     90   78.9%     +15638       210m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              195   31.8%     +17969
+  EUROPE x NAS100.            164   34.8%     +15239
+  EUROPE x SP500.             175   30.9%      +8622
+  ASIA x SP500.               189   35.4%      +3599
+  ASIA x NAS100.              181   33.7%      -2594
+  ASIA x DJ30.                211   28.0%     -12423
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              116   33.6%     +13583
+  EUROPE x Lundi               92   43.5%     +12037
+  EUROPE x Jeudi              122   32.8%     +11059
+  EUROPE x Vendredi           119   27.7%      +9235
+  ASIA x Lundi                119   32.8%      +5394
+  ASIA x Jeudi                113   33.6%       -349
+  EUROPE x Mercredi            85   24.7%      -4082
+  ASIA x Mercredi             105   34.3%      -4799
+  ASIA x Mardi                115   30.4%      -5662
+  ASIA x Vendredi             129   30.2%      -6002
+
+--- STREAKS ---
+  Max wins consecutifs: 8
+  Max losses consecutifs: 27
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      741 ############################################################
+  [-0.5, +0.0)       13 #############
+  [+0.0, +0.5)       21 #####################
+  [+0.5, +1.0)       25 #########################
+  [+1.0, +2.0)       26 ##########################
+  [+2.0, +3.0)      289 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +304.1%
+  Rendement moyen:   +304.1%
+  Pire 5%:           +304.1%  (balance: 40413)
+  Meilleur 5%:       +304.1%  (balance: 40413)
+  Pire 1%:           +304.1%  (balance: 40413)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     12544 (41.0%)
+  Max DD pire 5%:    19878 (113.9%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1True_CD2_TE0_SL1.5
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 0 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 40072 (+300.7%)
+  Trades: 1116 | WR: 33.9%
+  Profit Factor: 1.15
+  Gain moyen: 596.23 | Perte moyenne: 264.64
+  Meilleur: 2270.71 | Pire: -998.40
+  R-multiple moyen: 0.099
+  Max drawdown: 14944 (29.9%)
+  Max pertes consecutives: 34
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          581   33.6%      -4661   +0.008   0.96
+  EUROPE        535   34.2%     +34733   +0.197   1.38
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             407   32.7%      +9589   +0.064
+  NAS100.           344   34.3%     +11546   +0.109
+  SP500.            365   34.8%      +8937   +0.128
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           211   38.4%     +18488   +0.242
+  Mardi           232   33.6%      +6171   +0.100
+  Mercredi        191   32.5%      -6047   +0.045
+  Jeudi           234   33.8%      +8862   +0.105
+  Vendredi        248   31.5%      +2598   +0.010
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     68   26.5%       -867   -0.209 !
+      2     91   45.1%      +6439   +0.350
+      3     98   26.5%      -8598   -0.201 !
+      4     81   34.6%      -2078   +0.033
+      5     65   27.7%      -5600   -0.167 !
+      6     94   35.1%      +5118   +0.050
+      7     84   36.9%       +925   +0.120
+      8     82   35.4%     +15226   +0.228
+      9     92   16.3%      -6794   -0.420 !
+     10     85   32.9%      +1073   +0.153
+     11     89   36.0%      +6683   +0.259
+     12     94   45.7%     +17418   +0.603
+     13     93   38.7%      +1127   +0.353
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     86   27.9%      -1588
+   2025-08    117   30.8%      -1094
+   2025-09    115   31.3%       -125
+   2025-10    166   32.5%       +300
+   2025-11    120   30.8%       -480
+   2025-12    136   33.1%       +673
+   2026-01    124   43.5%     +11435
+   2026-02    131   36.6%      +9468
+   2026-03    121   36.4%     +11482
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    580   31.4%      +2387   +0.016
+   SHORT    536   36.6%     +27685   +0.189
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    378  100.0%    +225374        99m
+      SL    738    0.0%    -195302        57m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              196   34.7%     +15721
+  EUROPE x NAS100.            163   33.7%     +10346
+  EUROPE x SP500.             176   34.1%      +8666
+  ASIA x NAS100.              181   34.8%      +1200
+  ASIA x SP500.               189   35.4%       +271
+  ASIA x DJ30.                211   30.8%      -6132
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Lundi               92   43.5%     +11110
+  EUROPE x Mardi              117   35.9%     +11072
+  EUROPE x Jeudi              121   34.7%      +9070
+  ASIA x Lundi                119   34.5%      +7379
+  EUROPE x Vendredi           119   29.4%      +7178
+  ASIA x Jeudi                113   32.7%       -208
+  ASIA x Mercredi             105   36.2%      -2350
+  EUROPE x Mercredi            86   27.9%      -3697
+  ASIA x Vendredi             129   33.3%      -4580
+  ASIA x Mardi                115   31.3%      -4901
+
+--- STREAKS ---
+  Max wins consecutifs: 8
+  Max losses consecutifs: 34
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      738 ############################################################
+  [+1.0, +2.0)      196 ############################################################
+  [+2.0, +3.0)      182 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +300.7%
+  Rendement moyen:   +300.7%
+  Pire 5%:           +300.7%  (balance: 40072)
+  Meilleur 5%:       +300.7%  (balance: 40072)
+  Pire 1%:           +300.7%  (balance: 40072)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     10592 (35.7%)
+  Max DD pire 5%:    16857 (96.2%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A2_EU3.0_AS2.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 3.0, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 210 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 39272 (+292.7%)
+  Trades: 1116 | WR: 33.9%
+  Profit Factor: 1.15
+  Gain moyen: 583.19 | Perte moyenne: 259.05
+  Meilleur: 2579.74 | Pire: -936.00
+  R-multiple moyen: 0.101
+  Max drawdown: 13465 (28.8%)
+  Max pertes consecutives: 26
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          581   35.3%      -7593   -0.009   0.92
+  EUROPE        535   32.3%     +36865   +0.221   1.40
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             407   31.9%      +8958   +0.059
+  NAS100.           345   35.4%     +13228   +0.152
+  SP500.            364   34.6%      +7086   +0.101
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           211   38.4%     +13378   +0.218
+  Mardi           231   33.3%      +6798   +0.100
+  Mercredi        191   33.0%      -4806   +0.050
+  Jeudi           235   34.0%      +9981   +0.128
+  Vendredi        248   31.0%      +3921   +0.018
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     68   29.4%       -817   -0.186 !
+      2     91   44.0%      +2486   +0.248
+      3     98   30.6%      -8521   -0.211
+      4     81   35.8%      -2801   -0.054
+      5     65   32.3%      -4115   -0.079
+      6     94   36.2%      +5581   +0.053
+      7     84   36.9%       +594   +0.122
+      8     83   32.5%     +15893   +0.293
+      9     92   16.3%      -6273   -0.382 !
+     10     85   36.5%      +4005   +0.309
+     11     89   33.7%      +2661   +0.141
+     12     94   40.4%     +18972   +0.603
+     13     92   34.8%      +1607   +0.364
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     86   29.1%      -1291
+   2025-08    117   31.6%       -441
+   2025-09    115   32.2%       +363
+   2025-10    166   32.5%      -1023
+   2025-11    121   34.7%       +174
+   2025-12    135   30.4%       -396
+   2026-01    124   42.7%     +10563
+   2026-02    131   34.4%      +9210
+   2026-03    121   36.4%     +12114
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    580   33.3%      +1323   +0.034
+   SHORT    536   34.5%     +27949   +0.175
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    319  100.0%    +208273        78m
+      SL    721    0.0%    -189855        46m
+    TIME     76   77.6%     +10853       210m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              196   31.6%     +16006
+  EUROPE x NAS100.            164   34.8%     +13563
+  EUROPE x SP500.             175   30.9%      +7296
+  ASIA x SP500.               189   38.1%       -210
+  ASIA x NAS100.              181   35.9%       -335
+  ASIA x DJ30.                211   32.2%      -7049
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              116   33.6%     +12394
+  EUROPE x Lundi               92   43.5%     +10659
+  EUROPE x Jeudi              122   32.8%      +9695
+  EUROPE x Vendredi           119   27.7%      +8362
+  ASIA x Lundi                119   34.5%      +2719
+  ASIA x Jeudi                113   35.4%       +286
+  ASIA x Mercredi             105   40.0%       -562
+  EUROPE x Mercredi            86   24.4%      -4245
+  ASIA x Vendredi             129   34.1%      -4441
+  ASIA x Mardi                115   33.0%      -5595
+
+--- STREAKS ---
+  Max wins consecutifs: 8
+  Max losses consecutifs: 26
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      725 ############################################################
+  [-0.5, +0.0)       12 ############
+  [+0.0, +0.5)       17 #################
+  [+0.5, +1.0)       23 #######################
+  [+1.0, +2.0)      187 ############################################################
+  [+2.0, +3.0)      152 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +292.7%
+  Rendement moyen:   +292.7%
+  Pire 5%:           +292.7%  (balance: 39272)
+  Meilleur 5%:       +292.7%  (balance: 39272)
+  Pire 1%:           +292.7%  (balance: 39272)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     10513 (36.1%)
+  Max DD pire 5%:    16620 (96.2%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1False_CD2_TE360_SL2.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: False (bars=2)
+  Cooldown: 2 barres | Time exit: 360 min
+  ATR SL mult: 2.0 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 39129 (+291.3%)
+  Trades: 1682 | WR: 34.8%
+  Profit Factor: 1.09
+  Gain moyen: 634.16 | Perte moyenne: 311.62
+  Meilleur: 2226.70 | Pire: -1023.99
+  R-multiple moyen: 0.079
+  Max drawdown: 17165 (33.5%)
+  Max pertes consecutives: 26
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          866   36.3%     -11495   +0.015   0.93
+  EUROPE        816   33.2%     +40624   +0.147   1.24
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             617   32.6%      +4156   +0.018
+  NAS100.           520   37.7%     +20302   +0.173
+  SP500.            545   34.5%      +4671   +0.058
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           312   40.7%     +15154   +0.217
+  Mardi           354   33.9%     +10865   +0.080
+  Mercredi        312   34.0%      -3264   +0.068
+  Jeudi           354   31.6%      -6406   -0.046
+  Vendredi        350   34.3%     +12779   +0.091
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1    124   39.5%      -2602   +0.027
+      2    121   33.9%      -8151   -0.075
+      3    148   40.5%      +2602   +0.091
+      4    120   40.8%      +2686   +0.122
+      5     99   32.3%      -6729   -0.051
+      6    121   33.1%      +5065   -0.011
+      7    133   32.3%      -4368   -0.024
+      8    131   36.6%     +11919   +0.266
+      9    141   22.7%      -7605   -0.222 !
+     10    158   32.3%      +1498   +0.080
+     11    133   32.3%      +3553   +0.131
+     12    121   42.1%     +27072   +0.474
+     13    132   34.8%      +4187   +0.221
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07    121   34.7%      +1604
+   2025-08    182   36.8%      +5465
+   2025-09    196   30.1%      -5073
+   2025-10    234   35.0%      +1173
+   2025-11    172   32.0%      -2307
+   2025-12    224   32.6%      -1054
+   2026-01    187   39.0%      +7611
+   2026-02    194   34.5%      +2514
+   2026-03    172   39.0%     +19195
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    855   34.5%      +3115   +0.056
+   SHORT    827   35.1%     +26014   +0.103
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    528  100.0%    +360350       121m
+      SL   1085    0.0%    -340815        77m
+    TIME     69   82.6%      +9594       360m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              304   33.6%     +19550
+  EUROPE x NAS100.            239   35.6%     +17004
+  EUROPE x SP500.             273   30.8%      +4070
+  ASIA x NAS100.              281   39.5%      +3298
+  ASIA x SP500.               272   38.2%       +600
+  ASIA x DJ30.                313   31.6%     -15394
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Lundi              152   42.8%     +17603
+  EUROPE x Vendredi           162   34.0%     +12771
+  EUROPE x Mardi              177   31.1%     +11246
+  EUROPE x Jeudi              179   29.6%      +3025
+  ASIA x Mercredi             166   38.0%       +757
+  ASIA x Vendredi             188   34.6%         +8
+  ASIA x Mardi                177   36.7%       -381
+  ASIA x Lundi                160   38.8%      -2449
+  EUROPE x Mercredi           146   29.5%      -4021
+  ASIA x Jeudi                175   33.7%      -9431
+
+--- STREAKS ---
+  Max wins consecutifs: 9
+  Max losses consecutifs: 26
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)     1087 ############################################################
+  [-0.5, +0.0)       10 ##########
+  [+0.0, +0.5)       31 ###############################
+  [+0.5, +1.0)       17 #################
+  [+1.0, +2.0)      273 ############################################################
+  [+2.0, +3.0)      264 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +291.3%
+  Rendement moyen:   +291.3%
+  Pire 5%:           +291.3%  (balance: 39129)
+  Meilleur 5%:       +291.3%  (balance: 39129)
+  Pire 1%:           +291.3%  (balance: 39129)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     15071 (48.5%)
+  Max DD pire 5%:    23574 (136.0%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A1_R2_BUS+ASIA_1atFalse
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US', 'ASIA']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 210 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 38811 (+288.1%)
+  Trades: 544 | WR: 34.4%
+  Profit Factor: 1.31
+  Gain moyen: 658.05 | Perte moyenne: 263.99
+  Meilleur: 1921.37 | Pire: -814.29
+  R-multiple moyen: 0.167
+  Max drawdown: 9943 (24.4%)
+  Max pertes consecutives: 26
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  EUROPE        544   34.4%     +28811   +0.167   1.31
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             201   34.3%     +13197   +0.182
+  NAS100.           164   36.0%     +10753   +0.202
+  SP500.            179   33.0%      +4861   +0.119
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi            96   43.8%      +8782   +0.425
+  Mardi           117   35.9%     +10287   +0.239
+  Mercredi         88   27.3%      -4108   -0.044
+  Jeudi           124   34.7%      +9045   +0.192
+  Vendredi        119   30.3%      +4806   +0.019
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      8     89   33.7%     +13203   +0.173
+      9     95   17.9%      -8034   -0.401 !
+     10     85   36.5%      +2400   +0.222
+     11     89   34.8%      +2059   +0.089
+     12     94   45.7%     +17157   +0.602
+     13     92   38.0%      +2026   +0.329
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     46   32.6%       -133
+   2025-08     56   23.2%      -2548
+   2025-09     51   41.2%      +3083
+   2025-10     83   26.5%      -1636
+   2025-11     58   37.9%      +1920
+   2025-12     67   25.4%      -1558
+   2026-01     63   44.4%      +7635
+   2026-02     67   38.8%      +8335
+   2026-03     53   43.4%     +13714
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    279   33.0%      +7884   +0.080
+   SHORT    265   35.8%     +20926   +0.259
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    170  100.0%    +118540        77m
+      SL    351    0.0%     -93795        43m
+    TIME     23   73.9%      +4065       210m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              201   34.3%     +13197
+  EUROPE x NAS100.            164   36.0%     +10753
+  EUROPE x SP500.             179   33.0%      +4861
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              117   35.9%     +10287
+  EUROPE x Jeudi              124   34.7%      +9045
+  EUROPE x Lundi               96   43.8%      +8782
+  EUROPE x Vendredi           119   30.3%      +4806
+  EUROPE x Mercredi            88   27.3%      -4108
+
+--- STREAKS ---
+  Max wins consecutifs: 9
+  Max losses consecutifs: 26
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      352 ############################################################
+  [-0.5, +0.0)        5 #####
+  [+0.0, +0.5)        5 #####
+  [+0.5, +1.0)        3 ###
+  [+1.0, +2.0)        8 ########
+  [+2.0, +3.0)      171 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +288.1%
+  Rendement moyen:   +288.1%
+  Pire 5%:           +288.1%  (balance: 38811)
+  Meilleur 5%:       +288.1%  (balance: 38811)
+  Pire 1%:           +288.1%  (balance: 38811)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     6367 (23.8%)
+  Max DD pire 5%:    10052 (60.9%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1True_CD2_TE360_SL1.5
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 360 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 38708 (+287.1%)
+  Trades: 1116 | WR: 34.4%
+  Profit Factor: 1.14
+  Gain moyen: 595.40 | Perte moyenne: 273.12
+  Meilleur: 2190.09 | Pire: -964.80
+  R-multiple moyen: 0.097
+  Max drawdown: 14495 (30.0%)
+  Max pertes consecutives: 34
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          581   34.4%      -6415   +0.002   0.94
+  EUROPE        535   34.4%     +35123   +0.201   1.37
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             407   32.9%      +9303   +0.060
+  NAS100.           344   34.9%     +10419   +0.105
+  SP500.            365   35.6%      +8985   +0.131
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           211   38.9%     +16307   +0.220
+  Mardi           232   33.6%      +6119   +0.100
+  Mercredi        191   33.5%      -5489   +0.049
+  Jeudi           234   34.6%      +9638   +0.115
+  Vendredi        248   31.9%      +2133   +0.010
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     68   29.4%       -768   -0.180 !
+      2     91   44.0%      +3769   +0.240
+      3     98   28.6%      -8036   -0.176 !
+      4     81   34.6%      -2168   +0.021
+      5     65   30.8%      -5007   -0.116
+      6     94   35.1%      +4820   +0.050
+      7     84   36.9%       +975   +0.118
+      8     82   35.4%     +14592   +0.229
+      9     92   16.3%      -7445   -0.421 !
+     10     85   34.1%      +1728   +0.174
+     11     89   36.0%      +6675   +0.258
+     12     94   45.7%     +17684   +0.602
+     13     93   38.7%      +1889   +0.354
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     86   29.1%      -1303
+   2025-08    117   30.8%      -1147
+   2025-09    115   32.2%        +99
+   2025-10    166   33.1%       +410
+   2025-11    120   34.2%        -15
+   2025-12    136   33.1%       +117
+   2026-01    124   43.5%     +11614
+   2026-02    131   35.9%      +8468
+   2026-03    121   36.4%     +10465
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    580   32.4%       +971   +0.017
+   SHORT    536   36.6%     +27737   +0.183
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    368  100.0%    +225941        88m
+      SL    730    0.0%    -199704        51m
+    TIME     18   88.9%      +2471       360m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x DJ30.              196   34.7%     +15678
+  EUROPE x NAS100.            163   34.4%     +10699
+  EUROPE x SP500.             176   34.1%      +8746
+  ASIA x SP500.               189   37.0%       +239
+  ASIA x NAS100.              181   35.4%       -280
+  ASIA x DJ30.                211   31.3%      -6374
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Lundi               92   44.6%     +11695
+  EUROPE x Mardi              117   35.9%     +11087
+  EUROPE x Jeudi              121   34.7%      +9267
+  EUROPE x Vendredi           119   29.4%      +6706
+  ASIA x Lundi                119   34.5%      +4612
+  ASIA x Jeudi                113   34.5%       +371
+  ASIA x Mercredi             105   38.1%      -1858
+  EUROPE x Mercredi            86   27.9%      -3632
+  ASIA x Vendredi             129   34.1%      -4573
+  ASIA x Mardi                115   31.3%      -4968
+
+--- STREAKS ---
+  Max wins consecutifs: 8
+  Max losses consecutifs: 34
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      731 ############################################################
+  [-0.5, +0.0)        1 #
+  [+0.0, +0.5)        5 #####
+  [+0.5, +1.0)       10 ##########
+  [+1.0, +2.0)      187 ############################################################
+  [+2.0, +3.0)      182 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +287.1%
+  Rendement moyen:   +287.1%
+  Pire 5%:           +287.1%  (balance: 38708)
+  Meilleur 5%:       +287.1%  (balance: 38708)
+  Pire 1%:           +287.1%  (balance: 38708)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     10806 (37.1%)
+  Max DD pire 5%:    17158 (99.3%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1True_CD2_TE210_SL2.0
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: True (bars=2)
+  Cooldown: 2 barres | Time exit: 210 min
+  ATR SL mult: 2.0 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 37918 (+279.2%)
+  Trades: 1113 | WR: 37.2%
+  Profit Factor: 1.12
+  Gain moyen: 623.61 | Perte moyenne: 329.41
+  Meilleur: 2008.80 | Pire: -891.02
+  R-multiple moyen: 0.096
+  Max drawdown: 16638 (37.3%)
+  Max pertes consecutives: 17
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          577   36.0%     -15001   -0.036   0.88
+  EUROPE        536   38.4%     +42919   +0.239   1.39
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             403   34.5%      +3934   +0.026
+  NAS100.           345   38.8%     +11911   +0.143
+  SP500.            365   38.6%     +12073   +0.130
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           214   41.6%     +11038   +0.196
+  Mardi           232   36.6%      +9454   +0.095
+  Mercredi        188   37.2%      -1983   +0.083
+  Jeudi           232   34.1%       +788   +0.009
+  Vendredi        247   36.8%      +8620   +0.105
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1     71   31.0%      -4239   -0.170
+      2     91   40.7%      -1321   +0.067
+      3     98   35.7%      -5795   -0.128
+      4     81   40.7%        +70   +0.031
+      5     65   30.8%      -6837   -0.173
+      6     88   37.5%      +7666   +0.090
+      7     83   33.7%      -4546   -0.016
+      8     85   41.2%     +15917   +0.430
+      9     85   25.9%      -6011   -0.149 !
+     10     84   44.0%      +6567   +0.288
+     11     90   37.8%       +647   +0.059
+     12     95   45.3%     +22611   +0.544
+     13     97   36.1%      +3187   +0.237
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07     84   33.3%      -1179
+   2025-08    120   35.8%      +1073
+   2025-09    116   38.8%      +2335
+   2025-10    164   38.4%      +2241
+   2025-11    119   37.8%       +147
+   2025-12    136   32.4%      -1551
+   2026-01    124   41.9%      +8474
+   2026-02    129   35.7%      +5730
+   2026-03    121   39.7%     +10649
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    575   36.9%      -3556   +0.035
+   SHORT    538   37.5%     +31474   +0.162
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    309  100.0%    +229877        96m
+      SL    670    0.0%    -227004        63m
+    TIME    134   78.4%     +25045       210m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x NAS100.            164   40.9%     +16892
+  EUROPE x DJ30.              197   37.1%     +13946
+  EUROPE x SP500.             175   37.7%     +12081
+  ASIA x SP500.               190   39.5%         -8
+  ASIA x NAS100.              181   37.0%      -4981
+  ASIA x DJ30.                206   32.0%     -10012
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Mardi              117   38.5%     +13638
+  EUROPE x Lundi               94   47.9%     +12640
+  EUROPE x Vendredi           119   37.8%     +10967
+  EUROPE x Jeudi              121   36.4%      +9393
+  ASIA x Mercredi             103   41.7%      +1737
+  ASIA x Lundi                120   36.7%      -1602
+  ASIA x Vendredi             128   35.9%      -2346
+  EUROPE x Mercredi            85   31.8%      -3719
+  ASIA x Mardi                115   34.8%      -4185
+  ASIA x Jeudi                111   31.5%      -8605
+
+--- STREAKS ---
+  Max wins consecutifs: 11
+  Max losses consecutifs: 17
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)      675 ############################################################
+  [-0.5, +0.0)       23 #######################
+  [+0.0, +0.5)       31 ###############################
+  [+0.5, +1.0)       39 #######################################
+  [+1.0, +2.0)      178 ############################################################
+  [+2.0, +3.0)      167 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +279.2%
+  Rendement moyen:   +279.2%
+  Pire 5%:           +279.2%  (balance: 37918)
+  Meilleur 5%:       +279.2%  (balance: 37918)
+  Pire 1%:           +279.2%  (balance: 37918)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     11866 (40.9%)
+  Max DD pire 5%:    18668 (108.8%)
+
+================================================================================
+
+
+================================================================================
+RAPPORT DETAILLE : A3_H1False_CD2_TE210_SL1.5
+================================================================================
+
+--- CONFIGURATION ---
+  Risk: 2% | RR defaut: 2.0
+  Sessions bloquees: ['US']
+  R:R par session: {'EUROPE': 2.5, 'ASIA': 2.0}
+  1 symbole a la fois: False
+  H1 trend filter: False (bars=2)
+  Cooldown: 2 barres | Time exit: 210 min
+  ATR SL mult: 1.5 | Jours bloques: aucun
+
+--- RESULTATS GLOBAUX ---
+  Balance: 10000 -> 35847 (+258.5%)
+  Trades: 1699 | WR: 34.9%
+  Profit Factor: 1.06
+  Gain moyen: 718.38 | Perte moyenne: 361.80
+  Meilleur: 2243.84 | Pire: -960.83
+  R-multiple moyen: 0.074
+  Max drawdown: 27348 (56.7%)
+  Max pertes consecutives: 21
+
+--- PAR SESSION ---
+  Session    Trades      WR        PnL    Avg R     PF
+  ASIA          873   36.2%     -12578   +0.013   0.94
+  EUROPE        826   33.5%     +38425   +0.138   1.19
+
+--- PAR SYMBOLE ---
+  Symbole        Trades      WR        PnL    Avg R
+  DJ30.             616   31.5%     -10499   -0.023
+  NAS100.           527   37.8%     +28535   +0.167
+  SP500.            556   36.0%      +7812   +0.093
+
+--- PAR JOUR ---
+  Jour         Trades      WR        PnL    Avg R
+  Lundi           317   41.3%     +24528   +0.252
+  Mardi           356   32.9%      +4606   +0.023
+  Mercredi        312   32.7%      -6087   +0.014
+  Jeudi           362   34.0%        +89   +0.041
+  Vendredi        352   34.1%      +2712   +0.051
+
+--- PAR HEURE (UTC) ---
+  Heure Trades      WR        PnL    Avg R
+      1    121   39.7%       -711   +0.054
+      2    119   41.2%      +2844   +0.196
+      3    146   37.7%      -3846   -0.015
+      4    119   36.1%      -3069   -0.032
+      5    102   34.3%      -4324   -0.007
+      6    130   33.8%      +1795   -0.023
+      7    136   30.9%      -5268   -0.061
+      8    130   30.0%      +5291   +0.049
+      9    150   25.3%      -7317   -0.134 !
+     10    165   37.0%      +6767   +0.182
+     11    136   30.9%       -153   +0.010
+     12    116   43.1%     +23976   +0.518
+     13    129   36.4%      +9862   +0.278
+
+--- PAR MOIS ---
+      Mois Trades      WR        PnL
+   2025-07    122   33.6%       +291
+   2025-08    186   36.6%      +3711
+   2025-09    197   33.0%       -747
+   2025-10    234   35.0%       +622
+   2025-11    180   33.9%       -442
+   2025-12    220   32.3%      -2620
+   2026-01    185   39.5%     +11864
+   2026-02    201   34.8%      +7013
+   2026-03    174   35.6%      +6156
+
+--- PAR DIRECTION ---
+     Dir Trades      WR        PnL    Avg R
+    LONG    874   35.2%      +7534   +0.065
+   SHORT    825   34.5%     +18313   +0.084
+
+--- PAR SORTIE ---
+  Raison Trades      WR        PnL  Duree moy
+      TP    512  100.0%    +403042        71m
+      SL   1083    0.0%    -397601        44m
+    TIME    104   77.9%     +20407       210m
+
+--- COMBOS SESSION x SYMBOLE ---
+  Combo                    Trades      WR        PnL
+  EUROPE x NAS100.            243   37.0%     +24657
+  EUROPE x SP500.             279   32.6%      +6896
+  EUROPE x DJ30.              304   31.6%      +6873
+  ASIA x NAS100.              284   38.4%      +3878
+  ASIA x SP500.               277   39.4%       +916
+  ASIA x DJ30.                312   31.4%     -17372
+
+--- COMBOS SESSION x JOUR ---
+  Combo                    Trades      WR        PnL
+  EUROPE x Lundi              156   46.2%     +23835
+  EUROPE x Mardi              177   29.9%     +10479
+  EUROPE x Vendredi           162   33.3%      +9411
+  EUROPE x Jeudi              181   31.5%      +2834
+  ASIA x Mercredi             162   37.7%      +2046
+  ASIA x Lundi                161   36.6%       +693
+  ASIA x Jeudi                181   36.5%      -2745
+  ASIA x Mardi                179   35.8%      -5872
+  ASIA x Vendredi             190   34.7%      -6699
+  EUROPE x Mercredi           150   27.3%      -8133
+
+--- STREAKS ---
+  Max wins consecutifs: 8
+  Max losses consecutifs: 21
+
+--- DISTRIBUTION R-MULTIPLES ---
+  [-1.0, -0.5)     1088 ############################################################
+  [-0.5, +0.0)       17 #################
+  [+0.0, +0.5)       28 ############################
+  [+0.5, +1.0)       30 ##############################
+  [+1.0, +2.0)      290 ############################################################
+  [+2.0, +3.0)      246 ############################################################
+
+--- SIMULATION MONTE CARLO (10 000 trajectoires) ---
+  Rendement median:  +258.5%
+  Rendement moyen:   +258.5%
+  Pire 5%:           +258.5%  (balance: 35847)
+  Meilleur 5%:       +258.5%  (balance: 35847)
+  Pire 1%:           +258.5%  (balance: 35847)
+  Prob. profit > 0:  100.0%
+  Prob. perte > 50%: 0.0%
+  Prob. perte > 90%: 0.0%
+  Max DD median:     18790 (58.2%)
+  Max DD pire 5%:    29392 (164.2%)
+
+================================================================================
+
+

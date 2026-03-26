@@ -40,7 +40,7 @@ from strategy_core import (
     USE_CONFIRMATION_FILTER, CONFIRMATION_BARS, USE_VOLATILITY_FILTER,
     MAX_VOLATILITY_MULTIPLIER, EMA_TOUCH_TOLERANCE, USE_H1_TREND_FILTER,
     COOLDOWN_AFTER_LOSS, MAX_TRADE_DURATION_MINUTES,
-    BLOCKED_SESSIONS, SESSION_RR,
+    BLOCKED_SESSIONS, SESSION_RR, ALLOWED_HOURS, BLOCKED_DAYS,
     # Enums
     TradeType, TradingSession,
     # Fonctions pures
@@ -285,6 +285,12 @@ class MT5TradingBot:
         if BLOCKED_SESSIONS:
             blocked_names = ", ".join(s.value for s in BLOCKED_SESSIONS)
             self.log(f"🚫 Sessions bloquees: {blocked_names}")
+        if ALLOWED_HOURS is not None:
+            self.log(f"🕐 Heures autorisees: {ALLOWED_HOURS} UTC")
+        day_names_log = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+        if BLOCKED_DAYS:
+            blocked_day_names = ", ".join(day_names_log[d] for d in BLOCKED_DAYS)
+            self.log(f"📅 Jours bloques: {blocked_day_names}")
         self.log(f"⏱️  Time Exit: {MAX_TRADE_DURATION_MINUTES} min ({MAX_TRADE_DURATION_MINUTES // 5} bougies M5)" if MAX_TRADE_DURATION_MINUTES > 0 else "⏱️  Time Exit: desactive")
         self.log(f"🛡️  Protection quotidienne: {max_daily_loss:.2f} {account_info.currency if account_info else 'USD'}")
         self.log(f"🔧 Filtres: ATR: {'✅' if USE_ATR_FILTER else '❌'}, H1 Trend: {'✅' if USE_H1_TREND_FILTER else '❌'}")
@@ -1841,11 +1847,16 @@ class MT5TradingBot:
             else:
                 self.log(f"   📊 H1: ❌ Données H1 indisponibles ou insuffisantes (df_h1={'None' if df_h1_check is None else len(df_h1_check)} bougies)")
         
-        # Si on est en session bloquee, indiquer que le trading est bloque
+        # Si on est en session/heure/jour bloque, indiquer que le trading est bloque
         if session == TradingSession.OFF_HOURS:
             self.log(f"   ⏸️  Trading bloqué: Session OFF_HOURS (21:00-00:00 UTC)")
         elif session in BLOCKED_SESSIONS:
             self.log(f"   ⏸️  Trading bloqué: Session {session.value} (bloquée par config)")
+        elif BLOCKED_DAYS and current_time.weekday() in BLOCKED_DAYS:
+            day_names_f = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+            self.log(f"   ⏸️  Trading bloqué: {day_names_f[current_time.weekday()]} (jour bloqué V2_SAFE)")
+        elif ALLOWED_HOURS is not None and current_time.hour not in ALLOWED_HOURS:
+            self.log(f"   ⏸️  Trading bloqué: {current_time.hour}h UTC (heure non autorisée, allowed: {ALLOWED_HOURS})")
         
         # Afficher les positions ouvertes (plusieurs positions possibles)
         positions = mt5.positions_get(symbol=symbol)

@@ -25,8 +25,8 @@ EMA_FAST = 20
 SMA_SLOW = 50
 
 # Risk/Reward
-RISK_REWARD_RATIO_FLAT = 2.0       # R:R 1:2 fixe (optimise R3: +129% rendement)
-RISK_REWARD_RATIO_TRENDING = 2.0   # R:R 1:2 fixe (optimise R3: +129% rendement)
+RISK_REWARD_RATIO_FLAT = 3.5       # R:R 1:3.5 (V2_SAFE)
+RISK_REWARD_RATIO_TRENDING = 3.5   # R:R 1:3.5 (V2_SAFE)
 
 # Pente SMA 50
 SMA_SLOPE_MIN = 0.00003
@@ -39,7 +39,7 @@ ATR_LOOKBACK = 20
 
 # SL
 USE_ATR_SL = True
-ATR_SL_MULTIPLIER = 1.5
+ATR_SL_MULTIPLIER = 2.0  # V2_SAFE (etait 1.5)
 
 # Directions
 ALLOW_LONG = True
@@ -66,7 +66,7 @@ H1_BARS_REQUIRED = 2  # Nombre de barres H1 fermees pour le filtre (2 = plus rea
 COOLDOWN_AFTER_LOSS = 2  # 0 = desactive, 2 = attendre 10 min apres un SL (optimise R5)
 
 # Time exit: fermer un trade apres N minutes sans toucher SL ni TP
-MAX_TRADE_DURATION_MINUTES = 210  # 210 min = 3h30 = 42 bougies M5 (optimise R5). 0 = desactive.
+MAX_TRADE_DURATION_MINUTES = 360  # 360 min = 6h (V2_SAFE, etait 210)
 
 
 # ============================================================================
@@ -85,14 +85,19 @@ class TradingSession(Enum):
     OFF_HOURS = "OFF"      # 21:00 - 00:00 UTC
 
 
-# Session blocking (optimise R6: US session perd -4300$, WR 32%)
-BLOCKED_SESSIONS = [TradingSession.US]  # Sessions ou aucun nouveau trade n'est ouvert
+# Session blocking (V2_SAFE: EU only)
+BLOCKED_SESSIONS = [TradingSession.US, TradingSession.ASIA]
 
-# R:R par session (optimise R6: EU=2.5 ASIA=2.0 → +182.6% rendement)
+# R:R par session (V2_SAFE: EU 3.5)
 SESSION_RR = {
-    TradingSession.EUROPE: 2.5,
-    TradingSession.ASIA: 2.0,
+    TradingSession.EUROPE: 3.5,
 }
+
+# Heures autorisees (V2_SAFE: bloque 9h et 13h UTC)
+ALLOWED_HOURS = [8, 10, 11, 12]  # None = toutes les heures
+
+# Jours bloques (V2_SAFE: mercredi)
+BLOCKED_DAYS = [2]  # 0=Lundi, 1=Mardi, 2=Mercredi, 3=Jeudi, 4=Vendredi
 
 
 class MarketCondition(Enum):
@@ -149,11 +154,17 @@ def get_trading_session(trade_time: datetime) -> TradingSession:
 
 
 def is_valid_trading_session(trade_time: datetime) -> bool:
-    """True si on est dans une session valide (pas OFF_HOURS ni bloquee)."""
+    """True si on est dans une session valide (pas OFF_HOURS ni bloquee, heure/jour ok)."""
     session = get_trading_session(trade_time)
     if session == TradingSession.OFF_HOURS:
         return False
     if session in BLOCKED_SESSIONS:
+        return False
+    # Filtre jours bloques (V2_SAFE: mercredi)
+    if BLOCKED_DAYS and trade_time.weekday() in BLOCKED_DAYS:
+        return False
+    # Filtre heures autorisees (V2_SAFE: 8, 10, 11, 12)
+    if ALLOWED_HOURS is not None and trade_time.hour not in ALLOWED_HOURS:
         return False
     return True
 

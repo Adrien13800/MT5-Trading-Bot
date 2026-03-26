@@ -1,0 +1,24 @@
+Best Version V1 - A1_R5_BUS+ASIA_1atFalse
+==========================================
+Resultat: +750.5% (10k -> 85k) sur 258 jours
+WR: 34.4% | PF: 1.33 | Max DD: 25.1% | 544 trades
+
+Parametres:
+  risk_percent: 5
+  blocked_sessions: [US, ASIA]  (EU only: 8h-14h UTC)
+  session_rr: {EUROPE: 2.5, ASIA: 2.0}  (seul EU est actif)
+  rr_default: 2.0
+  one_symbol_at_a_time: False  (3 paires en parallele)
+  use_h1_trend_filter: True (h1_bars=2)
+  cooldown_after_loss: 2 barres M5
+  max_trade_duration_minutes: 210
+  atr_sl_multiplier: 1.5
+  blocked_days: aucun
+  symbols: DJ30., NAS100., SP500.
+
+Points cles:
+  - Session EUROPE uniquement
+  - SHORT domine: +62715 vs LONG +12339
+  - Meilleure heure: 12h UTC (+49k, WR 45.7%)
+  - Pire heure: 9h UTC (-17k, WR 17.9%)
+  - Pire jour: Mercredi (-19k, WR 27.3%)
