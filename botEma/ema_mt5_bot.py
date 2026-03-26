@@ -292,7 +292,10 @@ class MT5TradingBot:
             blocked_day_names = ", ".join(day_names_log[d] for d in BLOCKED_DAYS)
             self.log(f"📅 Jours bloques: {blocked_day_names}")
         self.log(f"⏱️  Time Exit: {MAX_TRADE_DURATION_MINUTES} min ({MAX_TRADE_DURATION_MINUTES // 5} bougies M5)" if MAX_TRADE_DURATION_MINUTES > 0 else "⏱️  Time Exit: desactive")
-        self.log(f"🛡️  Protection quotidienne: {max_daily_loss:.2f} {account_info.currency if account_info else 'USD'}")
+        if max_daily_loss is not None:
+            self.log(f"🛡️  Protection quotidienne: {max_daily_loss:.2f} {account_info.currency if account_info else 'USD'}")
+        else:
+            self.log("🛡️  Protection quotidienne: desactivee")
         self.log(f"🔧 Filtres: ATR: {'✅' if USE_ATR_FILTER else '❌'}, H1 Trend: {'✅' if USE_H1_TREND_FILTER else '❌'}")
         self.log(f"📈 Trading: LONG: {'✅' if ALLOW_LONG else '❌'}, SHORT: {'✅' if ALLOW_SHORT else '❌'}")
         
