@@ -32,20 +32,20 @@ except ImportError:
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "files"))
 
 def _load_telegram_config():
-    """Charge la config Telegram depuis config.py (chargement différé)."""
+    """Charge la config Telegram depuis .env (independant de config.py)."""
     try:
-        import config as cfg
-        enabled = getattr(cfg, 'TELEGRAM_ENABLED', False)
-        token = getattr(cfg, 'TELEGRAM_BOT_TOKEN', '')
-        chat_id = getattr(cfg, 'TELEGRAM_CHAT_ID', '')
-        return enabled, token, chat_id
-    except Exception:
-        return False, '', ''
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
+    except ImportError:
+        pass
+    token = os.getenv('TELEGRAM_BOT_TOKEN', '')
+    chat_id = os.getenv('TELEGRAM_CHAT_ID', '')
+    return bool(token and chat_id), token, chat_id
 
 def notify(message: str) -> None:
     """Envoie une notification Telegram (silencieux si non configuré)."""
     enabled, token, chat_id = _load_telegram_config()
-    if not enabled or not token or not chat_id:
+    if not enabled:
         return
     try:
         from notifier import send_telegram
