@@ -14,7 +14,13 @@ Usage avec classe:
 
 import urllib.request
 import urllib.parse
+import ssl
 import re
+
+# Contexte SSL permissif (certains serveurs Windows ont des CA obsoletes)
+_ssl_ctx = ssl.create_default_context()
+_ssl_ctx.check_hostname = False
+_ssl_ctx.verify_mode = ssl.CERT_NONE
 
 
 def send_telegram(token: str, chat_id: str, message: str, timeout: int = 10) -> bool:
@@ -30,7 +36,7 @@ def send_telegram(token: str, chat_id: str, message: str, timeout: int = 10) -> 
 
     try:
         req = urllib.request.Request(url, data=data, method="POST")
-        urllib.request.urlopen(req, timeout=timeout)
+        urllib.request.urlopen(req, timeout=timeout, context=_ssl_ctx)
         return True
     except Exception as e:
         print(f"[TG DEBUG] HTML attempt failed: {e}")
@@ -44,7 +50,7 @@ def send_telegram(token: str, chat_id: str, message: str, timeout: int = 10) -> 
 
     try:
         req = urllib.request.Request(url, data=data, method="POST")
-        urllib.request.urlopen(req, timeout=timeout)
+        urllib.request.urlopen(req, timeout=timeout, context=_ssl_ctx)
         return True
     except Exception as e:
         print(f"[TG DEBUG] Plain attempt failed: {e}")
