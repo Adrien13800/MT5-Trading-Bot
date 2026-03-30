@@ -29,8 +29,6 @@ except ImportError:
 # ============================================================================
 # NOTIFICATIONS TELEGRAM
 # ============================================================================
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "files"))
-
 def _load_telegram_config():
     """Charge la config Telegram depuis .env (independant de config.py)."""
     try:
