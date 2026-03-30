@@ -10,7 +10,7 @@ Lancez le bot avec :  python run_bot.py --account ftmo
 
 import os
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
 
 # ============================================================================
 # NOTIFICATIONS TELEGRAM
