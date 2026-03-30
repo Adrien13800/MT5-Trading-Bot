@@ -27,6 +27,33 @@ except ImportError:
     sys.exit(1)
 
 # ============================================================================
+# NOTIFICATIONS TELEGRAM
+# ============================================================================
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "files"))
+
+def _load_telegram_config():
+    """Charge la config Telegram depuis config.py (chargement différé)."""
+    try:
+        import config as cfg
+        enabled = getattr(cfg, 'TELEGRAM_ENABLED', False)
+        token = getattr(cfg, 'TELEGRAM_BOT_TOKEN', '')
+        chat_id = getattr(cfg, 'TELEGRAM_CHAT_ID', '')
+        return enabled, token, chat_id
+    except Exception:
+        return False, '', ''
+
+def notify(message: str) -> None:
+    """Envoie une notification Telegram (silencieux si non configuré)."""
+    enabled, token, chat_id = _load_telegram_config()
+    if not enabled or not token or not chat_id:
+        return
+    try:
+        from notifier import send_telegram
+        send_telegram(token, chat_id, message)
+    except Exception as e:
+        logging.warning(f"Telegram: {e}")
+
+# ============================================================================
 # IMPORT STRATEGY CORE (source unique de verite pour la logique de trading)
 # ============================================================================
 import strategy_core
@@ -298,7 +325,15 @@ class MT5TradingBot:
             self.log("🛡️  Protection quotidienne: desactivee")
         self.log(f"🔧 Filtres: ATR: {'✅' if USE_ATR_FILTER else '❌'}, H1 Trend: {'✅' if USE_H1_TREND_FILTER else '❌'}")
         self.log(f"📈 Trading: LONG: {'✅' if ALLOW_LONG else '❌'}, SHORT: {'✅' if ALLOW_SHORT else '❌'}")
-        
+
+        # Notification Telegram de démarrage
+        notify(
+            f"<b>Bot EMA demarre</b> [{self.account_name}]\n"
+            f"Balance: {account_info.balance:.2f} {account_info.currency if account_info else 'USD'}\n"
+            f"Symboles: {', '.join(self.symbols)}\n"
+            f"Risque: {risk_percent}% | Magic: {self.magic_number}"
+        )
+
         # Charger les données H1 pour l'analyse de tendance supérieure
         if USE_H1_TREND_FILTER:
             self.log("\n📊 Chargement des données H1 (analyse de tendance)...")
@@ -580,8 +615,10 @@ class MT5TradingBot:
             return True
 
         self.log("⚠️  Connexion MT5 perdue, réinitialisation complète du terminal...")
+        notify(f"<b>Connexion MT5 perdue</b> [{self.account_name}]\nTentative de reconnexion...")
         if not self._initialize_mt5():
             self.log("❌ Échec de reconnexion")
+            notify(f"<b>Echec reconnexion MT5</b> [{self.account_name}]")
             return False
         self.log("✅ Reconnexion réussie")
         return True
@@ -1147,6 +1184,12 @@ class MT5TradingBot:
                 account_info = mt5.account_info()
                 currency = account_info.currency if account_info else "USD"
                 self.log(f"🛡️  Protection quotidienne déclenchée: {daily_loss:.2f} {currency} <= {self.max_daily_loss:.2f} {currency}")
+                notify(
+                    f"<b>DAILY LOSS LIMIT</b> [{self.account_name}]\n"
+                    f"Perte: {daily_loss:.2f} {currency}\n"
+                    f"Limite: {self.max_daily_loss:.2f} {currency}\n"
+                    f"Trading arrete pour la journee"
+                )
             
             account_info = mt5.account_info()
             currency = account_info.currency if account_info else "USD"
@@ -1426,7 +1469,14 @@ class MT5TradingBot:
         self.log(f"   TP: {take_profit:.2f} (distance: {take_profit - result.price:.2f})")
         self.log(f"   Lot: {lot_size}")
         self.log(f"   R:R = 1:{rr_ratio:.1f}")
-        
+
+        notify(
+            f"<b>LONG {symbol}</b> [{self.account_name}]\n"
+            f"Entry: {result.price:.2f} | Lot: {lot_size}\n"
+            f"SL: {stop_loss:.2f} | TP: {take_profit:.2f}\n"
+            f"R:R = 1:{rr_ratio:.1f}"
+        )
+
         # Ajouter le trade à la liste (plusieurs trades par symbole)
         if symbol not in self.open_trades:
             self.open_trades[symbol] = []
@@ -1676,7 +1726,14 @@ class MT5TradingBot:
         self.log(f"   TP: {take_profit:.2f} (distance: {execution_price - take_profit:.2f})")
         self.log(f"   Lot: {lot_size}")
         self.log(f"   R:R = 1:{rr_ratio:.1f}")
-        
+
+        notify(
+            f"<b>SHORT {symbol}</b> [{self.account_name}]\n"
+            f"Entry: {result.price:.2f} | Lot: {lot_size}\n"
+            f"SL: {stop_loss:.2f} | TP: {take_profit:.2f}\n"
+            f"R:R = 1:{rr_ratio:.1f}"
+        )
+
         # Ajouter le trade à la liste (comme pour LONG - plusieurs positions par symbole)
         if symbol not in self.open_trades:
             self.open_trades[symbol] = []
@@ -2008,6 +2065,11 @@ class MT5TradingBot:
                 pos_type_str = "LONG" if pos.type == mt5.ORDER_TYPE_BUY else "SHORT"
                 self.log(f"\n⏱️  Time Exit: {pos.symbol} {pos_type_str} (ticket {pos.ticket}) ouvert depuis {elapsed_minutes:.0f} min (> {MAX_TRADE_DURATION_MINUTES} min)")
                 closed = self.close_position_market(pos.ticket, pos.symbol, pos.volume, pos.type)
+                if closed:
+                    notify(
+                        f"<b>Time Exit {pos.symbol} {pos_type_str}</b> [{self.account_name}]\n"
+                        f"Profit: {pos.profit:+.2f} | Duree: {elapsed_minutes:.0f} min"
+                    )
                 if closed and pos.profit < 0:
                     self.last_loss_time = datetime.now()
                     self.log(f"   ⏸️  Cooldown activé ({COOLDOWN_AFTER_LOSS} barres) après Time Exit en perte")
@@ -2052,6 +2114,11 @@ class MT5TradingBot:
                                 break
                     if deal_profit is not None:
                         self.log(f"   📋 Position {symbol} {pos_type_str} (ticket {trade.ticket}) fermee par MT5 | Profit: {deal_profit:.2f}")
+                        result_label = "TP" if deal_profit >= 0 else "SL"
+                        notify(
+                            f"<b>{result_label} {symbol} {pos_type_str}</b> [{self.account_name}]\n"
+                            f"Profit: {deal_profit:+.2f}"
+                        )
                         if deal_profit < 0:
                             self.last_loss_time = datetime.now()
                             self.log(f"   ⏸️  Cooldown activé ({COOLDOWN_AFTER_LOSS} barres) après perte")
@@ -2293,6 +2360,7 @@ class MT5TradingBot:
                         self.process_symbol(symbol)
                     except Exception as e:
                         self.log(f"❌ Erreur traitement {symbol}: {e}")
+                        notify(f"<b>ERREUR</b> [{self.account_name}]\n{symbol}: {e}")
                         import traceback
                         traceback.print_exc()
                         # Continuer avec les autres symboles même en cas d'erreur
@@ -2318,6 +2386,14 @@ class MT5TradingBot:
             self.log("\n\n⏹️  Arrêt du bot demandé par l'utilisateur")
             self.log_open_positions()
             self.display_status()
+            account_info = mt5.account_info()
+            daily_pnl = self.get_daily_loss() if account_info else 0
+            currency = account_info.currency if account_info else "USD"
+            notify(
+                f"<b>Bot arrete</b> [{self.account_name}]\n"
+                f"PnL jour: {daily_pnl:+.2f} {currency}\n"
+                f"Trades session: {len(self.trade_history)}"
+            )
             mt5.shutdown()
             self.session_logger.close()
             self.log("\n✅ Bot arrêté")

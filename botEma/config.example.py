@@ -8,6 +8,18 @@ Lancez le bot avec :  python run_bot.py --account ftmo
                       python run_bot.py --account vtmarkets
 """
 
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+# ============================================================================
+# NOTIFICATIONS TELEGRAM
+# ============================================================================
+# Remplir les valeurs dans le fichier .env (voir .env.example)
+TELEGRAM_ENABLED = True
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
 # ============================================================================
 # COMPTES MT5 — Un bloc par broker / compte
 # ============================================================================
