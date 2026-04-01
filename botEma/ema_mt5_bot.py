@@ -31,30 +31,24 @@ except ImportError:
 # ============================================================================
 def _load_telegram_config():
     """Charge la config Telegram depuis .env (independant de config.py)."""
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
     try:
         from dotenv import load_dotenv
-        loaded = load_dotenv(env_path)
-        print(f"[TG DEBUG] dotenv loaded={loaded} path={env_path} exists={os.path.exists(env_path)}")
+        load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
     except ImportError:
-        print(f"[TG DEBUG] python-dotenv NOT installed, .env exists={os.path.exists(env_path)}")
+        pass
     token = os.getenv('TELEGRAM_BOT_TOKEN', '')
     chat_id = os.getenv('TELEGRAM_CHAT_ID', '')
-    print(f"[TG DEBUG] token={'SET' if token else 'EMPTY'} chat_id={'SET' if chat_id else 'EMPTY'}")
     return bool(token and chat_id), token, chat_id
 
 def notify(message: str) -> None:
     """Envoie une notification Telegram (silencieux si non configuré)."""
     enabled, token, chat_id = _load_telegram_config()
     if not enabled:
-        print("[TG DEBUG] notify skipped: not enabled")
         return
     try:
         from notifier import send_telegram
-        result = send_telegram(token, chat_id, message)
-        print(f"[TG DEBUG] send_telegram result={result}")
+        send_telegram(token, chat_id, message)
     except Exception as e:
-        print(f"[TG DEBUG] notify error: {e}")
         logging.warning(f"Telegram: {e}")
 
 # ============================================================================

@@ -38,8 +38,8 @@ def send_telegram(token: str, chat_id: str, message: str, timeout: int = 10) -> 
         req = urllib.request.Request(url, data=data, method="POST")
         urllib.request.urlopen(req, timeout=timeout, context=_ssl_ctx)
         return True
-    except Exception as e:
-        print(f"[TG DEBUG] HTML attempt failed: {e}")
+    except Exception:
+        pass
 
     # Fallback : strip HTML et renvoyer en texte brut
     plain = re.sub(r"<[^>]+>", "", message)
@@ -52,8 +52,7 @@ def send_telegram(token: str, chat_id: str, message: str, timeout: int = 10) -> 
         req = urllib.request.Request(url, data=data, method="POST")
         urllib.request.urlopen(req, timeout=timeout, context=_ssl_ctx)
         return True
-    except Exception as e:
-        print(f"[TG DEBUG] Plain attempt failed: {e}")
+    except Exception:
         return False
 
 
